@@ -1,0 +1,62 @@
+<svg viewBox="0 0 200 230" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Icon centered at top -->
+    <g transform="translate(40, 0)">
+        <!-- Suitcase body -->
+        <rect x="20" y="70" width="80" height="70" rx="6" fill="#5B7C99"/>
+        
+        <!-- Suitcase details -->
+        <rect x="25" y="75" width="70" height="3" rx="1.5" fill="#4A6277" opacity="0.5"/>
+        <rect x="25" y="132" width="70" height="3" rx="1.5" fill="#4A6277" opacity="0.5"/>
+        
+        <!-- Handle -->
+        <path d="M48 70 L48 65 C48 62, 50 60, 52 60 L68 60 C70 60, 72 62, 72 65 L72 70" 
+              stroke="#4A6277" stroke-width="4" fill="none" stroke-linecap="round"/>
+        
+        <!-- Wheels -->
+        <circle cx="35" cy="143" r="4" fill="#2D3142"/>
+        <circle cx="85" cy="143" r="4" fill="#2D3142"/>
+        
+        <!-- Left ear -->
+        <path d="M42 60 Q38 45, 40 32 Q41 28, 43 30 Q46 35, 48 50 Z" fill="#E8927C"/>
+        <path d="M42 60 Q40 48, 41 36 Q42 34, 43 36 Q45 42, 46 52 Z" fill="#F5E6D3" opacity="0.6"/>
+        
+        <!-- Right ear -->
+        <path d="M78 60 Q82 45, 80 32 Q79 28, 77 30 Q74 35, 72 50 Z" fill="#E8927C"/>
+        <path d="M78 60 Q80 48, 79 36 Q78 34, 77 36 Q75 42, 74 52 Z" fill="#F5E6D3" opacity="0.6"/>
+        
+        <!-- Head -->
+        <ellipse cx="60" cy="62" rx="18" ry="20" fill="#E8927C"/>
+        
+        <!-- Fluffy forehead -->
+        <ellipse cx="60" cy="48" rx="12" ry="10" fill="#F5E6D3" opacity="0.8"/>
+        <circle cx="58" cy="46" r="5" fill="#FEFEFE" opacity="0.6"/>
+        <circle cx="63" cy="47" r="4" fill="#FEFEFE" opacity="0.5"/>
+        
+        <!-- Eyes -->
+        <ellipse cx="52" cy="58" rx="2.5" ry="3" fill="#2D3142"/>
+        <ellipse cx="68" cy="58" rx="2.5" ry="3" fill="#2D3142"/>
+        <circle cx="52.5" cy="57" r="1" fill="white" opacity="0.8"/>
+        <circle cx="68.5" cy="57" r="1" fill="white" opacity="0.8"/>
+        
+        <!-- Snout -->
+        <ellipse cx="60" cy="70" rx="8" ry="6" fill="#F5E6D3"/>
+        
+        <!-- Nose -->
+        <ellipse cx="60" cy="68" rx="3" ry="2.5" fill="#D67B66"/>
+        <line x1="60" y1="68" x2="60" y2="71" stroke="#2D3142" stroke-width="1"/>
+        
+        <!-- Smile -->
+        <path d="M55 72 Q60 74, 65 72" stroke="#2D3142" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        
+        <!-- Neck -->
+        <rect x="50" y="76" width="20" height="10" fill="#E8927C"/>
+        
+        <!-- Fluffy chest -->
+        <ellipse cx="60" cy="75" rx="11" ry="6" fill="#F5E6D3" opacity="0.7"/>
+    </g>
+    
+    <!-- Wordmark centered below icon -->
+    <text x="100" y="200" font-family="Arial, sans-serif" font-size="42" font-weight="bold" letter-spacing="-1.5" text-anchor="middle">
+        <tspan fill="#2D3142">Al</tspan><tspan fill="#8BC4A0">pac</tspan><tspan fill="#2D3142">a</tspan>
+    </text>
+</svg>

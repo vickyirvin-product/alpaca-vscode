@@ -1,0 +1,219 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Alpaca Design System
+   Primary: Teal/Cyan - Fresh, modern, trustworthy
+   Secondary: Deep Navy - Trust, reliability, calm
+   Accent: Orange/Warm - Energy, warmth, highlights
+*/
+
+@layer base {
+  :root {
+    /* Core Brand Colors - Light Mode */
+    --background: 210 40% 98%;
+    --foreground: 215 25% 27%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 27%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 27%;
+
+    /* Primary: Teal */
+    --primary: 173 58% 39%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Info: Blue from logo */
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+
+    /* Secondary: Deep Navy */
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 0 0% 100%;
+
+    /* Muted backgrounds */
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    /* Accent: Orange warm */
+    --accent: 173 40% 92%;
+    --accent-foreground: 173 58% 30%;
+
+    /* Destructive */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Essentials Vault - Orange/Gold */
+    --vault: 24 95% 53%;
+    --vault-foreground: 24 100% 20%;
+    --vault-glow: 24 95% 70%;
+
+    /* Success states */
+    --success: 160 60% 45%;
+    --success-foreground: 0 0% 100%;
+
+    /* Kid Mode - Uses main palette */
+    --kid-primary: 173 58% 39%;
+    --kid-secondary: 187 71% 44%;
+    --kid-accent: 24 95% 53%;
+
+    /* Borders and inputs */
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 173 58% 39%;
+
+    --radius: 0.75rem;
+
+    /* Sidebar */
+    --sidebar-background: 210 40% 98%;
+    --sidebar-foreground: 215 25% 27%;
+    --sidebar-primary: 173 58% 39%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 173 30% 94%;
+    --sidebar-accent-foreground: 173 58% 30%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 173 58% 39%;
+  }
+
+  .dark {
+    /* Dark Mode - Deep Navy base with teal/orange accents */
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+
+    --card: 217 33% 17%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 217 33% 17%;
+    --popover-foreground: 210 40% 98%;
+
+    /* Primary: Teal - brighter for dark mode */
+    --primary: 173 58% 50%;
+    --primary-foreground: 222 47% 11%;
+
+    /* Info: Blue from logo */
+    --info: 199 89% 55%;
+    --info-foreground: 222 47% 11%;
+
+    /* Secondary: Lighter navy */
+    --secondary: 215 20% 65%;
+    --secondary-foreground: 222 47% 11%;
+
+    /* Muted */
+    --muted: 217 33% 20%;
+    --muted-foreground: 215 20% 65%;
+
+    /* Accent */
+    --accent: 173 30% 20%;
+    --accent-foreground: 173 58% 70%;
+
+    /* Destructive */
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Vault */
+    --vault: 24 95% 53%;
+    --vault-foreground: 24 100% 10%;
+    --vault-glow: 24 80% 40%;
+
+    /* Success */
+    --success: 160 50% 40%;
+    --success-foreground: 0 0% 100%;
+
+    /* Kid Mode - same warm palette */
+    --kid-primary: 173 58% 50%;
+    --kid-secondary: 187 71% 50%;
+    --kid-accent: 24 95% 53%;
+
+    /* Borders */
+    --border: 217 33% 25%;
+    --input: 217 33% 25%;
+    --ring: 173 58% 50%;
+
+    /* Sidebar */
+    --sidebar-background: 222 47% 9%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 173 58% 50%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 217 33% 20%;
+    --sidebar-accent-foreground: 173 58% 70%;
+    --sidebar-border: 217 33% 22%;
+    --sidebar-ring: 173 58% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight text-secondary;
+  }
+}
+
+@layer utilities {
+  .gradient-primary {
+    @apply bg-gradient-to-br from-primary to-primary/80;
+  }
+
+  .gradient-vault {
+    background: linear-gradient(135deg, hsl(var(--vault)) 0%, hsl(var(--vault-glow)) 100%);
+  }
+
+  .vault-glow {
+    box-shadow: 0 0 20px hsl(var(--vault) / 0.3), 0 0 40px hsl(var(--vault) / 0.1);
+  }
+
+  .card-shadow {
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  }
+
+  .card-shadow-lg {
+    box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.04);
+  }
+
+  .text-gradient-primary {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-kid-secondary;
+  }
+
+  .text-gradient-accent {
+    background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--kid-secondary)), hsl(var(--vault)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Kid mode animations */
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(-3deg); }
+    50% { transform: rotate(3deg); }
+  }
+
+  @keyframes bounce-gentle {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+  }
+
+  @keyframes confetti-fall {
+    0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+  }
+
+  .animate-wiggle {
+    animation: wiggle 0.3s ease-in-out;
+  }
+
+  .animate-bounce-gentle {
+    animation: bounce-gentle 0.6s ease-in-out infinite;
+  }
+
+  .animate-confetti {
+    animation: confetti-fall 2s ease-out forwards;
+  }
+}
