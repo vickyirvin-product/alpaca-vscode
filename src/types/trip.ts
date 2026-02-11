@@ -5,7 +5,7 @@
 
 export type TravelerType = 'adult' | 'child' | 'infant';
 
-export type ItemCategory = 
+export type ItemCategory =
   | 'clothing'
   | 'toiletries'
   | 'electronics'

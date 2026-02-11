@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Check, Bookmark } from 'lucide-react';
+import { Check, Bookmark, LogIn, Info } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useApp } from '@/context/AppContext';
+import { useNavigate } from 'react-router-dom';
 
 interface SaveListAsTemplateDialogProps {
   open: boolean;
@@ -33,8 +35,23 @@ export function SaveListAsTemplateDialog({
     }
   }, [open]);
 
+  const { auth } = useApp();
+  const navigate = useNavigate();
+
   const handleSave = async () => {
     if (!templateName.trim()) return;
+
+    // Check authentication before saving
+    if (!auth.isAuthenticated) {
+      // Store intent and redirect to login
+      sessionStorage.setItem('pending_list_template_save', JSON.stringify({
+        tripName,
+        itemCount,
+        templateName: templateName.trim(),
+      }));
+      navigate('/login', { state: { from: window.location.pathname } });
+      return;
+    }
 
     setIsSaving(true);
     
@@ -104,6 +121,14 @@ export function SaveListAsTemplateDialog({
               />
             </div>
 
+            {/* Login prompt for guest users */}
+            {!auth.isAuthenticated && (
+              <div className="flex items-start gap-2 p-3 bg-primary/10 border border-primary/20 rounded-lg text-xs text-primary">
+                <Info className="w-4 h-4 shrink-0 mt-0.5" />
+                <p>Login required to save templates permanently</p>
+              </div>
+            )}
+
             <div className="flex justify-end gap-2 pt-2">
               <Button
                 variant="outline"
@@ -115,7 +140,7 @@ export function SaveListAsTemplateDialog({
               <Button
                 onClick={handleSave}
                 disabled={!templateName.trim() || isSaving}
-                className="min-w-[100px]"
+                className="min-w-[100px] gap-2"
               >
                 {isSaving ? (
                   <motion.div
@@ -123,6 +148,11 @@ export function SaveListAsTemplateDialog({
                     transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
                     className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full"
                   />
+                ) : !auth.isAuthenticated ? (
+                  <>
+                    <LogIn className="w-4 h-4" />
+                    Login to Save
+                  </>
                 ) : (
                   'Save Template'
                 )}

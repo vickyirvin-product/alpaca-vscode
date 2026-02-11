@@ -1,6 +1,6 @@
 """API routes for Google Maps integration."""
 from fastapi import APIRouter, HTTPException, Depends, Query
-from typing import Annotated
+from typing import Annotated, Optional
 import httpx
 
 from models.maps import (
@@ -10,7 +10,7 @@ from models.maps import (
     PlaceDetails
 )
 from services.maps_service import maps_service
-from routes.auth import get_current_user
+from routes.auth import get_current_user_optional
 from models.user import UserInDB
 
 
@@ -23,19 +23,19 @@ router = APIRouter(prefix="/api/v1/maps", tags=["maps"])
     summary="Get destination autocomplete suggestions"
 )
 async def autocomplete_destination(
-    query: Annotated[str, Query(min_length=2, description="Search query for destination")],
-    current_user: UserInDB = Depends(get_current_user)
+    input: Annotated[str, Query(min_length=2, description="Search query for destination")],
+    current_user: Optional[UserInDB] = Depends(get_current_user_optional)
 ) -> AutocompleteResponse:
     """
     Get destination autocomplete suggestions using Google Places API.
     
-    - **query**: Search query string (minimum 2 characters)
+    - **input**: Search query string (minimum 2 characters)
     
     Returns a list of place suggestions with place IDs and descriptions.
-    Requires authentication.
+    Authentication is optional.
     """
     try:
-        results = await maps_service.autocomplete_destination(query)
+        results = await maps_service.autocomplete_destination(input)
         suggestions = [PlaceSuggestion(**result) for result in results]
         return AutocompleteResponse(suggestions=suggestions)
     
@@ -58,7 +58,7 @@ async def autocomplete_destination(
 )
 async def get_place_details(
     place_id: str,
-    current_user: UserInDB = Depends(get_current_user)
+    current_user: Optional[UserInDB] = Depends(get_current_user_optional)
 ) -> PlaceDetailsResponse:
     """
     Get detailed information about a place using Google Places API.
@@ -66,7 +66,7 @@ async def get_place_details(
     - **place_id**: Google Place ID from autocomplete
     
     Returns detailed place information including coordinates.
-    Requires authentication.
+    Authentication is optional.
     """
     try:
         result = await maps_service.get_place_details(place_id)

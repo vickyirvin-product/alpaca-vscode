@@ -17,14 +17,24 @@ export default function AuthCallback() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        // Handle the OAuth callback and get tokens
-        await authApi.handleAuthCallback();
+        // Get tokens from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const accessToken = urlParams.get('access_token');
+        const refreshToken = urlParams.get('refresh_token');
+        
+        if (!accessToken || !refreshToken) {
+          throw new Error('No tokens received from authentication');
+        }
+        
+        // Store tokens in localStorage
+        localStorage.setItem('auth_token', accessToken);
+        localStorage.setItem('refresh_token', refreshToken);
         
         // Verify authentication and load user data
         await checkAuth();
         
         // Get the intended destination from session storage or default to dashboard
-        const intendedDestination = sessionStorage.getItem('auth_redirect') || '/dashboard';
+        const intendedDestination = sessionStorage.getItem('auth_redirect') || '/';
         sessionStorage.removeItem('auth_redirect');
         
         // Redirect to the intended destination

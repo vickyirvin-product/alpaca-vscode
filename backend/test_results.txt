@@ -1,0 +1,245 @@
+
+================================================================================
+PACKING LIST PROMPT VALIDATION TEST SUITE
+Testing new 212-line comprehensive family travel packing expert system
+================================================================================
+
+🧪 Running Test Scenarios...
+
+================================================================================
+SCENARIO A: Beach Family Vacation (Hot/Sunny)
+================================================================================
+📍 Destination: Maui, Hawaii
+📅 Duration: 7 days
+👥 Travelers: 4 (Dad, Mom, Leo 8yo, Mia 3yo)
+🌤️  Weather: 85.0°F, ['sunny']
+🎯 Activities: ['Beach', 'Pool', 'Snorkeling', 'Casual Dining']
+🔍 DEBUG - LLM Service generating lists with PARALLEL execution:
+  Destination: Maui, Hawaii
+  Duration: 8 days
+  Travelers: 4
+  Activities: ['Beach', 'Pool', 'Snorkeling', 'Casual Dining']
+  Transport: ['Plane', 'Rental Car']
+🚀 Starting parallel generation for 4 travelers...
+🔍 Generating list for Dad (ID: t1)...
+🔍 Generating list for Mom (ID: t2)...
+🔍 Generating list for Leo (ID: t3)...
+🔍 Generating list for Mia (ID: t4)...
+🔍 DEBUG - Direct JSON parse failed, attempting to extract JSON...
+🔍 DEBUG - Direct JSON parse failed, attempting to extract JSON...
+🔍 DEBUG - Direct JSON parse failed, attempting to extract JSON...
+🔍 DEBUG - Direct JSON parse failed, attempting to extract JSON...
+✅ Generated list for Dad (36 items)
+✅ Generated list for Mom (28 items)
+✅ Generated list for Leo (23 items)
+✅ Generated list for Mia (28 items)
+🔍 DEBUG - Parallel generation complete (took 26.44 seconds)
+🔍 DEBUG - Successfully generated 4 of 4 lists
+
+📋 Dad's List:
+   Items: 36
+   Categories: ['activities', 'clothing', 'comfort', 'documents', 'electronics', 'health', 'misc', 'toiletries']
+   Essential items: 8
+      ⭐ 🛂 Passport
+      ⭐ 🪪 Driver's License
+      ⭐ 💳 Credit Cards and Cash
+
+📋 Mom's List:
+   Items: 28
+   Categories: ['activities', 'clothing', 'comfort', 'documents', 'electronics', 'health', 'misc', 'toiletries']
+   Essential items: 6
+      ⭐ 🛂 Passport
+      ⭐ 🪪 Driver's License
+      ⭐ 💳 Credit Cards and Cash
+
+📋 Leo's List:
+   Items: 23
+   Categories: ['activities', 'clothing', 'comfort', 'documents', 'electronics', 'health', 'misc', 'toiletries']
+   Essential items: 4
+      ⭐ 🌞 Sunscreen
+      ⭐ 📑 Travel Insurance Documents
+      ⭐ 📱 Phone and Charger
+
+📋 Mia's List:
+   Items: 28
+   Categories: ['activities', 'baby', 'clothing', 'comfort', 'documents', 'health', 'misc', 'toiletries']
+   Essential items: 5
+      ⭐ 💊 Prescription Medications
+      ⭐ 📑 Travel Insurance Documents
+      ⭐ 🧸 Favorite Stuffed Animal
+
+================================================================================
+TEST RESULTS: Scenario A: Beach Family
+================================================================================
+⏱️  Generation Time: 26.44s
+👥 Travelers Tested: 4
+📦 Total Items Generated: 115
+📂 Categories Found: ['activities', 'baby', 'clothing', 'comfort', 'documents', 'electronics', 'health', 'misc', 'toiletries']
+
+✅ VALIDATIONS:
+   Passed: 19/20
+   ✅ All travelers received packing lists
+   ❌ Generation time within target (≤25s)
+      → 26.44s
+   ✅ Dad: Item count in range (20-50)
+   ✅ Dad: Essential categories present
+   ✅ Dad: Hot weather items included
+   ✅ Dad: Beach/pool items included
+   ✅ Mom: Item count in range (20-50)
+   ✅ Mom: Essential categories present
+   ✅ Mom: Hot weather items included
+   ✅ Mom: Beach/pool items included
+   ✅ Leo: Item count in range (20-50)
+   ✅ Leo: Essential categories present
+   ✅ Leo: Hot weather items included
+   ✅ Leo: Beach/pool items included
+   ✅ Mia: Item count in range (20-50)
+   ✅ Mia: Essential categories present
+   ✅ Mia: Hot weather items included
+   ✅ Mia: Beach/pool items included
+   ✅ Mia: Toddler-specific items
+   ✅ Category diversity (≥5 categories used)
+
+⚠️  ISSUES FOUND (1):
+   • Generation time within target (≤25s): 26.44s
+================================================================================
+
+
+================================================================================
+SCENARIO B: Ski Trip for Couple (Cold/Snowy)
+================================================================================
+📍 Destination: Aspen, Colorado
+📅 Duration: 4 days
+👥 Travelers: 2 (Alex, Sam)
+🌤️  Weather: 25.0°F, ['snowy', 'cloudy']
+🎯 Activities: ['Skiing', 'Après-ski', 'Hot Tub']
+🔍 DEBUG - LLM Service generating lists with PARALLEL execution:
+  Destination: Aspen, Colorado
+  Duration: 5 days
+  Travelers: 2
+  Activities: ['Skiing', 'Après-ski', 'Hot Tub']
+  Transport: ['Car']
+🚀 Starting parallel generation for 2 travelers...
+🔍 Generating list for Alex (ID: t1)...
+🔍 Generating list for Sam (ID: t2)...
+🔍 DEBUG - Direct JSON parse failed, attempting to extract JSON...
+🔍 DEBUG - Direct JSON parse failed, attempting to extract JSON...
+✅ Generated list for Alex (33 items)
+✅ Generated list for Sam (43 items)
+🔍 DEBUG - Parallel generation complete (took 34.67 seconds)
+🔍 DEBUG - Successfully generated 2 of 2 lists
+
+📋 Alex's List:
+   Items: 33
+   Categories: ['activities', 'clothing', 'comfort', 'documents', 'electronics', 'health', 'misc', 'toiletries']
+
+📋 Sam's List:
+   Items: 43
+   Categories: ['activities', 'clothing', 'comfort', 'documents', 'electronics', 'health', 'misc', 'toiletries']
+
+================================================================================
+TEST RESULTS: Scenario B: Ski Trip
+================================================================================
+⏱️  Generation Time: 34.67s
+👥 Travelers Tested: 2
+📦 Total Items Generated: 76
+📂 Categories Found: ['activities', 'clothing', 'comfort', 'documents', 'electronics', 'health', 'misc', 'toiletries']
+
+✅ VALIDATIONS:
+   Passed: 7/8
+   ✅ All travelers received packing lists
+   ❌ Generation time within target (≤25s)
+      → 34.67s
+   ✅ Alex: Cold weather items
+   ✅ Alex: Ski-specific gear
+   ✅ Alex: Activities category present
+   ✅ Sam: Cold weather items
+   ✅ Sam: Ski-specific gear
+   ✅ Sam: Activities category present
+
+⚠️  ISSUES FOUND (1):
+   • Generation time within target (≤25s): 34.67s
+================================================================================
+
+
+================================================================================
+SCENARIO E: Domestic Trip with Infant
+================================================================================
+📍 Destination: Chicago, IL
+📅 Duration: 5 days
+👥 Travelers: 2 (Mom, Baby Sam)
+🌤️  Weather: 70.0°F, ['sunny']
+🎯 Activities: ['Family Visit', 'Park Stroll']
+🔍 DEBUG - LLM Service generating lists with PARALLEL execution:
+  Destination: Chicago, IL
+  Duration: 6 days
+  Travelers: 2
+  Activities: ['Family Visit', 'Park Stroll']
+  Transport: ['Car']
+🚀 Starting parallel generation for 2 travelers...
+🔍 Generating list for Mom (ID: t1)...
+🔍 Generating list for Baby Sam (ID: t2)...
+🔍 DEBUG - Direct JSON parse failed, attempting to extract JSON...
+🔍 DEBUG - Direct JSON parse failed, attempting to extract JSON...
+✅ Generated list for Mom (28 items)
+✅ Generated list for Baby Sam (21 items)
+🔍 DEBUG - Parallel generation complete (took 20.77 seconds)
+🔍 DEBUG - Successfully generated 2 of 2 lists
+
+📋 Baby Sam's List:
+   Items: 21
+   Categories: ['activities', 'baby', 'clothing', 'comfort', 'health', 'misc', 'toiletries']
+
+   👶 Baby Category Items (5):
+      ⭐ 🩲 Diapers (x36)
+      ⭐ 🧻 Baby Wipes (x2)
+      ⭐ 🥛 Baby Formula (x1)
+      ⭐ 🍼 Bottles (x4)
+         🛏️ Changing Pad (x1)
+
+================================================================================
+TEST RESULTS: Scenario E: Infant Trip
+================================================================================
+⏱️  Generation Time: 20.77s
+👥 Travelers Tested: 2
+📦 Total Items Generated: 21
+📂 Categories Found: ['activities', 'baby', 'clothing', 'comfort', 'health', 'misc', 'toiletries']
+
+✅ VALIDATIONS:
+   Passed: 3/3
+   ✅ All travelers received packing lists
+   ✅ Baby Sam: 'baby' category present
+   ✅ Baby Sam: Essential baby items present
+
+🎉 NO ISSUES FOUND!
+================================================================================
+
+
+================================================================================
+OVERALL TEST SUMMARY
+================================================================================
+
+📊 Statistics:
+   Scenarios Tested: 3
+   Total Validations: 29/31 passed
+   Total Issues: 2
+
+⏱️  Performance:
+   Scenario A: Beach Family: 26.44s for 4 travelers
+   Scenario B: Ski Trip: 34.67s for 2 travelers
+   Scenario E: Infant Trip: 20.77s for 2 travelers
+   Average: 27.30s per scenario
+
+📦 Items Generated:
+   Scenario A: Beach Family: 115 items across 4 travelers
+   Scenario B: Ski Trip: 76 items across 2 travelers
+   Scenario E: Infant Trip: 21 items across 2 travelers
+
+📂 Categories Used:
+   ['activities', 'baby', 'clothing', 'comfort', 'documents', 'electronics', 'health', 'misc', 'toiletries']
+
+🎯 FINAL ASSESSMENT:
+   ⚠️  MINOR ISSUES (2) - Prompt is working well with minor improvements needed.
+
+================================================================================
+===============================================================

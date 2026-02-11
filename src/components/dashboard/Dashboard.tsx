@@ -14,9 +14,11 @@ import { ShareDialog } from '@/components/packing/ShareDialog';
 import { SaveListAsTemplateDialog } from '@/components/packing/SaveListAsTemplateDialog';
 import { PrintDialog } from '@/components/packing/PrintDialog';
 import { AddItemDialog } from '@/components/packing/AddItemDialog';
+import { GuestModeBanner } from './GuestModeBanner';
 import { useApp } from '@/context/AppContext';
-import { KidModeLevel, extendedTripData } from '@/data/mockData';
+import { KidModeLevel } from '@/data/mockData';
 import { cn } from '@/lib/utils';
+import { isGuestTripId } from '@/lib/guestStorage';
 const navItems = [{
   label: 'Account',
   icon: User
@@ -39,7 +41,9 @@ export function Dashboard() {
     addItem,
     setHasCompletedOnboarding,
     isLoadingTrips,
-    trips
+    trips,
+    currentTrip,
+    auth
   } = useApp();
   const { toast } = useToast();
   const [shareOpen, setShareOpen] = useState(false);
@@ -49,6 +53,10 @@ export function Dashboard() {
   const [kidModeLevel, setKidModeLevel] = useState<KidModeLevel>('little');
   const [selectedPersonId, setSelectedPersonId] = useState(travelers[0]?.id || '');
   const [addItemDialogOpen, setAddItemDialogOpen] = useState(false);
+  const [showGuestBanner, setShowGuestBanner] = useState(true);
+  
+  // Check if current trip is in guest mode
+  const isGuestMode = !auth.isAuthenticated && currentTrip && isGuestTripId(currentTrip.id);
 
   // Track which travelers have had their kid mode preference set by user
   const [kidModePreferences, setKidModePreferences] = useState<Record<string, boolean>>({});
@@ -159,6 +167,11 @@ export function Dashboard() {
     }
   };
   return <div className={cn('min-h-screen transition-colors duration-300', kidMode && isChildSelected ? 'bg-gradient-to-br from-primary/10 via-kid-secondary/10 to-kid-accent/10' : 'bg-background')}>
+      {/* Guest Mode Banner */}
+      {isGuestMode && showGuestBanner && (
+        <GuestModeBanner onDismiss={() => setShowGuestBanner(false)} />
+      )}
+      
       {/* Sticky Header with Trip Name, Trip Details, and Actions */}
       <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-lg border-b border-border">
         <div className="container max-w-4xl mx-auto px-3">
@@ -171,7 +184,7 @@ export function Dashboard() {
             
             {/* Trip Name - BIGGER */}
             <h1 className="font-bold text-secondary truncate flex-1 min-w-0 text-xl">
-              {extendedTripData.title}
+              {trip.destination}
             </h1>
 
             {/* Hamburger Menu */}
@@ -269,7 +282,7 @@ export function Dashboard() {
       <PrintDialog open={printDialogOpen} onOpenChange={setPrintDialogOpen} travelers={travelers} />
 
       {/* Save List as Template Dialog */}
-      <SaveListAsTemplateDialog open={saveListTemplateOpen} onOpenChange={setSaveListTemplateOpen} tripName={extendedTripData.title} itemCount={totalItems} />
+      <SaveListAsTemplateDialog open={saveListTemplateOpen} onOpenChange={setSaveListTemplateOpen} tripName={trip.destination} itemCount={totalItems} />
 
     </div>;
 }

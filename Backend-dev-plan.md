@@ -20,7 +20,7 @@ A FastAPI backend for Alpaca - a family packing list app that uses AI to generat
 **Architecture Approach:**
 - "Try Before You Sign Up" flow - users create trips in localStorage, authenticate to save
 - Google OAuth for zero-friction authentication
-- LLM integration (OpenAI GPT-4) for intelligent packing list generation
+- LLM integration for intelligent packing list generation
 - Session-based access with JWT tokens
 - Future-proof data model (easy to add features later)
 
@@ -40,7 +40,7 @@ A FastAPI backend for Alpaca - a family packing list app that uses AI to generat
 - Google OAuth authentication (login, logout, token refresh)
 - Trip creation with destination, dates, travelers, activities
 - **Real-time weather data** fetching for destinations and dates
-- AI-powered packing list generation using OpenAI GPT-4 (weather-aware)
+- AI-powered packing list generation using OpenAI (weather-aware)
 - Packing item CRUD (create, read, update, delete, check/uncheck)
 - Item categorization and organization
 - Delegation of items between travelers
@@ -581,11 +581,11 @@ A FastAPI backend for Alpaca - a family packing list app that uses AI to generat
 - **REQUIRED fields (strictly enforced):**
   - Destination (at least 1)
   - Start date and end date
-  - All traveler names, ages, and types (adult/child/infant)
   - For children: ages are REQUIRED (core value prop for age-appropriate packing)
+  - Activities (required for LLM to generate useful lists)
 - **Recommended fields (yellow highlight if empty):**
-  - Activities (helps LLM generate better lists)
   - Transport methods (helps with packing suggestions)
+
 - Yellow highlight text for recommended fields: "Add this for better suggestions"
 - Remove "Skip to demo" button
 - Default kid mode level based on age: ≤6 = little, 7-11 = big, ≥12 = teenager
@@ -782,37 +782,91 @@ git push origin main
 
 **Trigger:** User submits trip creation form (`POST /api/v1/trips`)
 
-**Purpose:** Generate contextually appropriate packing list using OpenAI GPT-4
+**Purpose:** Generate comprehensive, personalized packing lists using OpenAI GPT-4 with expert system
+
+**Architecture:** Per-traveler parallel generation for optimal performance (40-50% faster)
 
 **Flow:**
 1. User submits trip details (destination, dates, travelers, activities)
-2. Backend validates input
-3. Backend calls OpenAI API with structured prompt
-4. LLM returns categorized packing items for each traveler
-5. Backend saves items to `packing_items` collection
-6. Response includes trip + generated items
+2. Backend validates input and fetches weather data
+3. Backend calculates trip parameters (duration, laundry access, season)
+4. For each traveler, backend generates focused prompt with comprehensive context
+5. LLM calls executed in parallel using `asyncio.gather()`
+6. Each traveler receives personalized list based on their age, needs, and trip context
+7. Backend saves items to `packing_items` collection
+8. Response includes trip + generated items with weather data
 
 **Idempotency:** Not required (each trip creation is unique)
 
-**UI Feedback:** Frontend shows loading spinner during generation (~3-5 seconds)
+**UI Feedback:** Frontend shows loading spinner during generation (~15-25 seconds for parallel execution)
 
-**Prompt Structure:**
+**Comprehensive System Prompt (212 lines):**
+
+The system implements a sophisticated family travel packing expert that includes:
+
+1. **Trip Analysis Framework:**
+   - Duration calculation and outfit rotation (laundry every 3-4 days if >5 days)
+   - Season/climate determination
+   - Activity-specific gear identification
+   - Transport-based luggage constraints
+   - Traveler profile analysis
+
+2. **Detailed Category Guidance (9 categories):**
+   - Clothing, Toiletries, Health, Documents, Electronics
+   - Comfort, Activities, Baby, Misc
+   - Each with specific item examples and guidance
+
+3. **Intelligent Adjustments:**
+   - Weather-based (cold/hot/rainy/variable)
+   - Activity-based (hiking/beach/skiing/formal)
+   - Transport-based (carry-on/checked/car/international)
+   - Age-based (infant/toddler/child/teen/adult)
+
+**Enhanced User Prompt Structure:**
 ```
-Generate a packing list for a family trip with the following details:
-- Destination: Tokyo, Japan
-- Dates: March 28 - April 18, 2026 (21 days)
-- Weather: Spring, avg 15°C, rainy
-- Travelers:
-  * Mom (38, adult)
-  * Emma (10, child)
-- Activities: Hiking, Sightseeing
-- Transport: Walking, Train
+# TRIP DETAILS
+Destination: Tokyo, Japan
+Duration: 21 days
+- Laundry Access: Assume available every 3-4 days
 
-Return JSON with items categorized by person and category.
-Consider weather, duration, activities, and traveler ages.
+# TRAVELER PROFILE
+Name: Sarah (Mom)
+Age: 38 years old
+Type: adult
+
+# TRIP CONDITIONS
+Weather Forecast:
+- Average Temperature: 15°C
+- Conditions: sunny, rainy, cloudy
+
+Planned Activities: Hiking, Sightseeing, Shopping
+Transportation: Walking, Train
+
+# YOUR TASK
+Generate complete, comprehensive packing list covering:
+1. All 9 Categories (where applicable)
+2. Smart Quantity Calculations (based on duration and laundry)
+3. Age-Appropriate Items
+4. Weather & Activity Adaptations
+5. Essential Item Marking
+
+Return JSON with "items" array following specified format.
 ```
 
-**Error Handling:** If LLM fails, return basic template list instead of failing entire request
+**Key Features:**
+- Comprehensive coverage across all relevant categories
+- Realistic quantities based on trip duration and laundry access
+- Age-appropriate items tailored to each traveler
+- Weather-appropriate clothing and gear
+- Activity-specific equipment
+- Essential items correctly marked
+- Helpful emojis and practical notes
+
+**Error Handling:**
+- Robust error handling for parallel requests
+- If one traveler fails, others still succeed
+- Graceful degradation with meaningful error messages
+- Fallback to template list if all LLM calls fail
 
 ---
 
@@ -1204,22 +1258,59 @@ Consider weather, duration, activities, and traveler ages.
 
 ---
 
-### Task 3: Implement OpenAI LLM Integration (Weather-Aware)
+### Task 3: Implement Comprehensive LLM Integration (Weather-Aware Expert System)
 - Create `app/services/llm_service.py`
-- Implement packing list generation function
-- Design prompt template that includes weather data
-- Include traveler ages for age-appropriate items
-- Parse LLM JSON response into packing items
-- Add error handling (fallback to template list if LLM fails)
-- Test with various trip scenarios
+- Implement comprehensive 212-line system prompt (`_get_single_traveler_system_prompt()`)
+- Implement enhanced user prompt builder (`_build_single_traveler_prompt()`)
+- Design per-traveler parallel generation architecture using `asyncio.gather()`
+- Include detailed trip analysis framework:
+  - Duration and laundry access calculations
+  - Season/climate determination
+  - Activity-specific gear identification
+  - Transport-based constraints
+  - Age-specific guidance (infant/toddler/child/teen/adult)
+- Implement detailed category guidance for all 9 categories
+- Add intelligent adjustments for weather, activities, transport, and age
+- Parse LLM JSON response into packing items with robust error handling
+- Add fallback to template list if LLM fails
+- Test with various trip scenarios (different ages, destinations, durations)
 
-**Prompt Enhancement:** Include weather context like "avg temp 15°C, rainy conditions expected" so LLM suggests rain gear, layers, etc.
+**System Prompt Features:**
+- Comprehensive family travel packing expert role definition
+- Trip analysis framework (duration, laundry, season, activities, transport)
+- Detailed guidance for 9 categories with specific item examples
+- Intelligent weather/activity/transport/age-based adjustments
+- Quality standards and output format specifications
+- Example output structure with proper JSON format
+
+**User Prompt Enhancements:**
+- Comprehensive trip details with laundry access calculations
+- Detailed traveler profile with age-specific guidance
+- Weather forecast with temperature and conditions
+- Planned activities and transportation methods
+- Clear task breakdown covering all 9 categories
+- Smart quantity calculation instructions
+- Age-appropriate item requirements
+- Weather and activity adaptation guidelines
+- Essential item marking criteria
 
 **Manual Test Step:**
-- Call LLM service with test trip + weather data → Receive categorized packing items with weather-appropriate suggestions
+- Call LLM service with test trip + weather data → Receive comprehensive categorized packing items with:
+  - Weather-appropriate suggestions (rain gear for rainy weather, layers for variable conditions)
+  - Age-appropriate items (baby items for infants, comfort items for children)
+  - Activity-specific gear (hiking boots, ski equipment, beach items)
+  - Realistic quantities based on duration and laundry access
+  - Properly marked essential items
 
 **User Test Prompt:**
-> "Use Python REPL to call the LLM service with a test trip (Tokyo, 2 adults, 1 child age 10, hiking, rainy weather). Verify it returns a packing list with rain jackets, umbrellas, and age-appropriate items for the 10-year-old."
+> "Use Python REPL to call the LLM service with a test trip (Tokyo, 21 days, 2 adults, 1 child age 10, hiking/sightseeing, rainy weather, 15°C). Verify it returns a comprehensive packing list with:
+> - Rain jackets and umbrellas for rainy conditions
+> - Layers for variable spring weather
+> - Age-appropriate items for the 10-year-old (kid-friendly toiletries, entertainment)
+> - Hiking gear in 'activities' category
+> - Realistic clothing quantities (4-5 outfits with laundry access noted)
+> - Essential items properly marked (passports, medications, chargers)
+> - Items across all relevant categories (clothing, toiletries, health, documents, electronics, comfort, activities, misc)"
 
 ---
 

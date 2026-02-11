@@ -7,6 +7,7 @@ export interface TripInfo {
   weather: WeatherInfo;
   travelers: Traveler[];
   createdAt: string;
+  activities?: string[];
 }
 
 export interface WeatherInfo {

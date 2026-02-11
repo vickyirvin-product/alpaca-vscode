@@ -261,7 +261,7 @@ export function PersonPackingList({
     setFilterOpen(false);
   };
 
-  // Group items by category
+  // Group items by category and sort within categories
   const itemsByCategory = useMemo(() => {
     const grouped: Partial<Record<ItemCategory, PackingItem[]>> = {};
     filteredItems.forEach(item => {
@@ -270,6 +270,25 @@ export function PersonPackingList({
       }
       grouped[item.category]!.push(item);
     });
+    
+    // Sort items within each category
+    // For "clothing" category: non-activity items first, then activity items
+    Object.keys(grouped).forEach(category => {
+      if (category === 'clothing') {
+        grouped[category as ItemCategory]!.sort((a, b) => {
+          const aIsActivity = a.name.startsWith('*');
+          const bIsActivity = b.name.startsWith('*');
+          
+          // Non-activity items (no asterisk) come before activity items (with asterisk)
+          if (!aIsActivity && bIsActivity) return -1;
+          if (aIsActivity && !bIsActivity) return 1;
+          
+          // Within same type, maintain original order (or sort alphabetically)
+          return 0;
+        });
+      }
+    });
+    
     return grouped;
   }, [filteredItems]);
 

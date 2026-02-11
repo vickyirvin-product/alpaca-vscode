@@ -1,50 +1,56 @@
-# Alpaca For You 🦙
+# Alpaca
 
-Alpaca For You is an intelligent packing list assistant that helps families prepare for trips. It uses AI to generate personalized packing lists based on destination weather, duration, and traveler needs.
+Alpaca is an intelligent packing list assistant that helps families prepare for trips. It uses a comprehensive AI-powered family travel packing expert system to generate personalized, context-aware packing lists based on destination weather, trip duration, activities, transportation, and individual traveler needs.
 
-## 🚀 Local Development
+## AI-Powered Packing Lists
 
-To run the application locally, you need to start both the backend (FastAPI) and frontend (React/Vite) servers.
+**Comprehensive Expert System:**
+- **212-line system prompt** implementing sophisticated family travel packing expertise
+- **Per-traveler parallel generation** for optimal performance (15-25 seconds)
+- **9 category coverage**: Clothing, Toiletries, Health, Documents, Electronics, Comfort, Activities, Baby, Misc
+- **Intelligent adjustments** based on weather, activities, transport, and traveler age
+- **Smart quantities** calculated from trip duration and laundry access
+- **Age-appropriate recommendations** for infants, toddlers, children, teens, and adults
 
-### Prerequisites
+## 🚀 Quick Start
 
-*   Node.js & npm
-*   Python 3.8+
-*   MongoDB (running locally or accessible URI)
-*   Google OAuth Credentials (configured in `backend/.env`)
+**New to the project?** Start here:
+- 📖 **[Quick Start Guide](QUICK_START.md)** - Get up and running in minutes
+- 📚 **[Complete Setup Guide](LOCAL_SETUP_GUIDE.md)** - Detailed setup instructions with troubleshooting
 
-### 1. Start the Backend
+### TL;DR - Start Development
 
-The backend runs on port `8000`.
-
+**Option 1: Automated (Recommended)**
 ```bash
-cd backend
-# Create virtual environment (if not exists)
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the server
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+./start-dev.sh
 ```
 
-Verify backend is running: [http://localhost:8000/healthz](http://localhost:8000/healthz)
-
-### 2. Start the Frontend
-
-The frontend runs on port `5173` (or `8080` depending on availability).
-
+**Option 2: Manual**
 ```bash
-# Install dependencies
-npm install
+# Terminal 1 - Backend
+cd backend
+source venv/bin/activate
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
-# Start development server
+# Terminal 2 - Frontend
 npm run dev
 ```
 
-Access the app: [http://localhost:5173](http://localhost:5173)
+**Access:**
+- Frontend: http://localhost:8080
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+
+### Prerequisites
+
+*   Node.js 18+ & npm
+*   Python 3.9+
+*   MongoDB Atlas account (already configured)
+*   API Keys (see [Quick Start Guide](QUICK_START.md)):
+    - Google OAuth credentials
+    - OpenAI API key
+    - WeatherAPI.com key
+    - Google Maps API key
 
 ## 🧪 Testing & Documentation
 
@@ -91,4 +97,4 @@ We have comprehensive documentation for the integrated application:
 
 ## Deployment
 
-This project is configured for deployment on Lovable/Vercel (Frontend) and a Python-capable host (Backend).
+This project is configured for deployment on Ember.new (Frontend) and a Python-capable host (Backend).

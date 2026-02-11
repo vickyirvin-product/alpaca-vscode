@@ -193,38 +193,78 @@ curl -X GET "http://localhost:8000/api/v1/trips/{trip_id}" \
 
 ### LLM Prompt Strategy
 
-The LLM receives a comprehensive prompt including:
+**Comprehensive Family Travel Packing Expert System** (212-line system prompt):
 
+The system implements a sophisticated expert system that analyzes trip parameters and generates comprehensive, personalized packing lists. The prompt architecture includes:
+
+**1. Trip Analysis Framework:**
+- Duration calculation and outfit rotation strategies (laundry every 3-4 days if >5 days)
+- Season/climate determination for appropriate clothing layers
+- Activity-specific gear identification
+- Transport-based luggage constraints
+- Traveler profile analysis (age, type, special needs)
+
+**2. Detailed Category Guidance (9 categories):**
+Each category includes specific item examples and guidance:
+- **Clothing**: Weather-appropriate outfits, layering, activity-specific, footwear
+- **Toiletries**: Personal hygiene, hair care, skin care, grooming
+- **Health**: Medications, first aid, vitamins, medical documents
+- **Documents**: Passports, tickets, insurance, emergency contacts
+- **Electronics**: Phone/chargers, tablets, cameras, power banks
+- **Comfort**: Travel pillows, entertainment, snacks, comfort items
+- **Activities**: Activity-specific gear, sports equipment, outdoor gear
+- **Baby**: Comprehensive infant/toddler items (diapers, formula, carriers)
+- **Misc**: Laundry supplies, bags, umbrellas, travel accessories
+
+**3. Intelligent Adjustments:**
+- **Weather-Based**: Cold/hot/rainy/variable conditions
+- **Activity-Based**: Hiking, beach, skiing, formal events
+- **Transport-Based**: Carry-on, checked bags, car travel, international
+- **Age-Based**: Infants, toddlers, children, teens, adults
+
+**4. Enhanced User Prompt Example:**
 ```
-DESTINATION: Tokyo, Japan
-DURATION: 21 days
+# TRIP DETAILS
+Destination: Tokyo, Japan
+Duration: 21 days
+- Laundry Access: Assume available every 3-4 days
 
-TRAVELERS:
-- Sarah (Mom): 38 years old (adult)
-- Mike (Dad): 40 years old (adult)
-- Emma: 10 years old (child)
+# TRAVELER PROFILE
+Name: Sarah (Mom)
+Age: 38 years old
+Type: adult
 
-WEATHER FORECAST:
+# TRIP CONDITIONS
+Weather Forecast:
 - Average Temperature: 15°C
 - Conditions: sunny, rainy, cloudy
-- Recommendation: Pack layers! Cherry blossom season...
 
-PLANNED ACTIVITIES:
-- Sightseeing
-- Hiking
-- Shopping
+Planned Activities: Sightseeing, Hiking, Shopping
+Transportation: Flight, Train
 
-TRANSPORTATION:
-- Flight
-- Train
+# YOUR TASK
+Generate complete, comprehensive packing list covering:
+1. All 9 Categories (where applicable)
+2. Smart Quantity Calculations (based on duration and laundry)
+3. Age-Appropriate Items
+4. Weather & Activity Adaptations
+5. Essential Item Marking
 ```
 
-The LLM then generates personalized packing lists with:
-- Age-appropriate items
-- Weather-appropriate clothing
-- Activity-specific gear
-- Essential items marked
-- Helpful emojis and notes
+**5. Per-Traveler Parallel Generation:**
+- Each traveler receives a focused, personalized prompt
+- Parallel execution for 40-50% faster generation
+- Comprehensive context ensures high-quality, thorough lists
+- Age-specific guidance for infants, toddlers, children, teens, adults
+
+The LLM generates personalized packing lists with:
+- Comprehensive coverage across all relevant categories
+- Realistic quantities based on trip duration and laundry access
+- Age-appropriate items tailored to each traveler
+- Weather-appropriate clothing and gear
+- Activity-specific equipment
+- Essential items correctly marked
+- Helpful emojis and practical notes
 
 ## Data Structure
 

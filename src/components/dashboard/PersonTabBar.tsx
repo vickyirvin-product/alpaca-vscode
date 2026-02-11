@@ -6,21 +6,6 @@ import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { NudgeDialog } from './NudgeDialog';
 
-// Avatar images
-import emmaAvatar from '@/assets/avatars/emma.jpeg';
-import lucasAvatar from '@/assets/avatars/lucas.jpg';
-import momAvatar from '@/assets/avatars/mom.jpeg';
-import dadAvatar from '@/assets/avatars/dad.jpeg';
-
-// Map traveler IDs/names to their photos
-const avatarImages: Record<string, string> = {
-  'mom': momAvatar,
-  'dad': dadAvatar,
-  'emma': emmaAvatar,
-  'emi': emmaAvatar,
-  'lucas': lucasAvatar,
-  'cam': lucasAvatar
-};
 
 interface PersonTabBarProps {
   travelers: Traveler[];
@@ -82,8 +67,6 @@ export function PersonTabBar({
         {travelersWithProgress.map(traveler => {
           const isSelected = traveler.id === selectedPersonId;
           const isLeader = traveler.id === leaderId;
-          const avatarImage = avatarImages[traveler.id.toLowerCase()] || 
-            avatarImages[traveler.name.toLowerCase().split(' ')[0]];
 
           return (
             <motion.div
@@ -102,15 +85,7 @@ export function PersonTabBar({
                   traveler.isComplete && !isSelected && 'border-success'
                 )}
               >
-                {avatarImage ? (
-                  <img
-                    src={avatarImage}
-                    alt={traveler.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-2xl">{traveler.avatar || '👤'}</span>
-                )}
+                <span className="text-2xl">{traveler.avatar || '👤'}</span>
               </motion.button>
 
               {/* 1st place medal on leader */}

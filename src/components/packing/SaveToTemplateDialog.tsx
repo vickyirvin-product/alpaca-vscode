@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Bookmark, Plus, Info } from 'lucide-react';
+import { Check, Bookmark, Plus, Info, LogIn } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { useApp } from '@/context/AppContext';
+import { useNavigate } from 'react-router-dom';
 
 // Dummy templates for prototype
 const dummyTemplates = [
@@ -58,7 +60,23 @@ export function SaveToTemplateDialog({
     setIsCreatingNew(!isCreatingNew);
   };
 
+  const { auth } = useApp();
+  const navigate = useNavigate();
+
   const handleConfirmSave = () => {
+    // Check authentication before saving
+    if (!auth.isAuthenticated) {
+      // Store intent and redirect to login
+      sessionStorage.setItem('pending_template_save', JSON.stringify({
+        itemDescription,
+        itemCount,
+        selectedTemplateIds: Array.from(selectedTemplateIds),
+        newTemplateName: isCreatingNew ? newTemplateName : null,
+      }));
+      navigate('/login', { state: { from: window.location.pathname } });
+      return;
+    }
+
     const templateIds = Array.from(selectedTemplateIds);
     if (isCreatingNew && newTemplateName.trim()) {
       templateIds.push(`new-${Date.now()}`);
@@ -269,6 +287,14 @@ export function SaveToTemplateDialog({
                 </AnimatePresence>
               </div>
 
+              {/* Login prompt for guest users */}
+              {!auth.isAuthenticated && (
+                <div className="flex items-start gap-2 p-3 bg-primary/10 border border-primary/20 rounded-lg text-xs text-primary">
+                  <Info className="w-4 h-4 shrink-0 mt-0.5" />
+                  <p>Login required to save templates permanently</p>
+                </div>
+              )}
+
               {/* Save Button */}
               <Button
                 onClick={handleConfirmSave}
@@ -283,6 +309,11 @@ export function SaveToTemplateDialog({
                       className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full"
                     />
                     Saving...
+                  </>
+                ) : !auth.isAuthenticated ? (
+                  <>
+                    <LogIn className="w-4 h-4" />
+                    Login to Save
                   </>
                 ) : (
                   <>

@@ -8,6 +8,8 @@ from routes.trips import router as trips_router
 from routes.packing import router as packing_router
 from routes.collaboration import router as collaboration_router
 from routes.maps import router as maps_router
+from routes.weather import router as weather_router
+from routes.llm import router as llm_router
 from config import settings
 
 
@@ -34,7 +36,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",  # Vite default
-        "http://localhost:8080",  # Alternative dev server
+        "http://localhost:8080",  # Lovable repo frontend
+        "http://localhost:8081",  # This repo frontend
         "http://localhost:3000",  # Common React dev port
     ],
     allow_credentials=True,
@@ -54,6 +57,8 @@ app.include_router(trips_router)
 app.include_router(packing_router)
 app.include_router(collaboration_router)
 app.include_router(maps_router)
+app.include_router(weather_router)
+app.include_router(llm_router)
 
 
 @app.get("/healthz")

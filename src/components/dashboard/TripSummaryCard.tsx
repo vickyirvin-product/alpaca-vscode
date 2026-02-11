@@ -16,7 +16,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { TripInfo } from '@/types/packing';
-import { extendedTripData } from '@/data/mockData';
 
 interface TripSummaryCardProps {
   trip: TripInfo;
@@ -24,7 +23,9 @@ interface TripSummaryCardProps {
 }
 
 export function TripSummaryCard({ trip, onEdit }: TripSummaryCardProps) {
-  const [activities, setActivities] = useState(extendedTripData.activities);
+  // Use activities from trip prop, fallback to empty array
+  const tripActivities = trip.activities || [];
+  const [activities, setActivities] = useState<string[]>(tripActivities);
   const [visibleCount, setVisibleCount] = useState(activities.length);
   const [showAllPopover, setShowAllPopover] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -107,24 +108,24 @@ export function TripSummaryCard({ trip, onEdit }: TripSummaryCardProps) {
               <div className="px-4 pb-4 space-y-3">
                 {/* Locations with individual pins */}
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                  {extendedTripData.locations.map((location, index) => (
-                    <span key={index} className="flex items-center gap-1 text-muted-foreground">
-                      <MapPin className="w-3.5 h-3.5 text-primary" />
-                      {location}
-                    </span>
-                  ))}
+                  <span className="flex items-center gap-1 text-muted-foreground">
+                    <MapPin className="w-3.5 h-3.5 text-primary" />
+                    {trip.destination}
+                  </span>
                 </div>
 
                 {/* Date & Weather Row */}
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5 text-primary" />
-                    3 weeks in late {monthName}
+                    {trip.duration} days in {monthName}
                   </span>
-                  <span className="flex items-center gap-1.5">
-                    <Thermometer className="w-3.5 h-3.5 text-primary" />
-                    {extendedTripData.weather.lowRange.min}°F – {extendedTripData.weather.highRange.max}°F
-                  </span>
+                  {trip.weather && (
+                    <span className="flex items-center gap-1.5">
+                      <Thermometer className="w-3.5 h-3.5 text-primary" />
+                      {trip.weather.avgTemp}°{trip.weather.tempUnit}
+                    </span>
+                  )}
                 </div>
 
                 {/* Activity Tags */}
@@ -193,15 +194,24 @@ export function TripSummaryCard({ trip, onEdit }: TripSummaryCardProps) {
                 </div>
 
                 {/* Weather Insight Card - Teal style matching trip summary */}
-                <div className="bg-primary/10 border border-primary/30 rounded-xl px-3 py-2.5">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <span className="text-sm">🌸</span>
-                    <span className="text-xs font-semibold text-primary">Cherry Blossom Season!</span>
+                {trip.weather && (
+                  <div className="bg-primary/10 border border-primary/30 rounded-xl px-3 py-2.5">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="text-sm">
+                        {trip.weather.conditions.includes('sunny') ? '☀️' :
+                         trip.weather.conditions.includes('rainy') ? '🌧️' :
+                         trip.weather.conditions.includes('snowy') ? '❄️' :
+                         trip.weather.conditions.includes('cloudy') ? '☁️' : '🌤️'}
+                      </span>
+                      <span className="text-xs font-semibold text-primary">
+                        {trip.weather.avgTemp}°{trip.weather.tempUnit} - {trip.weather.conditions.join(', ')}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {trip.weather.recommendation}
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {trip.weather.recommendation} 🌧️
-                  </p>
-                </div>
+                )}
               </div>
             </motion.div>
           )}

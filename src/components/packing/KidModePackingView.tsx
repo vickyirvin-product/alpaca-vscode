@@ -10,6 +10,7 @@ import { useApp } from '@/context/AppContext';
 import { KidModeLevel, kidModeLevels } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { parseActivityItem } from '@/lib/activityIcons';
 
 interface KidModePackingViewProps {
   items: PackingItem[];
@@ -261,22 +262,30 @@ export function KidModePackingView({
                   : "bg-card border-4 border-vault hover:border-vault-glow"
               )}
             >
-              {/* Item emoji */}
-              <span className={cn(
-                "mb-1 transition-transform",
-                levelStyles.cardSize,
-                item.isPacked && "scale-90"
-              )}>
-                {item.emoji}
-              </span>
+              {/* Item emoji and activity icon */}
+              <div className="flex items-center gap-2 mb-1">
+                <span className={cn(
+                  "transition-transform",
+                  levelStyles.cardSize,
+                  item.isPacked && "scale-90"
+                )}>
+                  {item.emoji}
+                </span>
+                {(() => {
+                  const { isActivityItem, ActivityIcon } = parseActivityItem(item.name);
+                  return isActivityItem && ActivityIcon ? (
+                    <ActivityIcon className="w-6 h-6 text-kid-primary" />
+                  ) : null;
+                })()}
+              </div>
 
-              {/* Item name */}
+              {/* Item name - strip asterisk */}
               <p className={cn(
                 "font-semibold text-center leading-tight",
                 levelStyles.fontSize,
                 item.isPacked ? "text-white" : "text-secondary"
               )}>
-                {item.name}
+                {parseActivityItem(item.name).cleanName}
               </p>
 
               {/* Bottom row: Large Checkbox + Big Quantity */}

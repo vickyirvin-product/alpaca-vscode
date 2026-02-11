@@ -677,3 +677,102 @@ export const collaborationApi = {
     return api.delete<void>(`/api/v1/trips/${tripId}/share`);
   },
 };
+
+/**
+ * Maps API Methods
+ */
+import { AutocompleteResponse, PlaceDetailsResponse } from '@/types/maps';
+
+export const mapsApi = {
+  /**
+   * Get location autocomplete suggestions
+   */
+  getAutocompleteSuggestions: async (input: string): Promise<AutocompleteResponse> => {
+    return api.get<AutocompleteResponse>(`/api/v1/maps/autocomplete?input=${encodeURIComponent(input)}`);
+  },
+
+  /**
+   * Get place details by place ID
+   */
+  getPlaceDetails: async (placeId: string): Promise<PlaceDetailsResponse> => {
+    return api.get<PlaceDetailsResponse>(`/api/v1/maps/place/${placeId}`);
+  },
+};
+
+/**
+ * Weather API Methods
+ */
+export interface WeatherForecastResponse {
+  avgTemp: number;
+  tempUnit: string;
+  conditions: string[];
+  recommendation: string;
+  forecastData?: {
+    location: string;
+    country: string;
+    dailyForecasts: Array<{
+      date: string;
+      maxTempC: number;
+      minTempC: number;
+      avgTempC: number;
+      condition: string;
+      chanceOfRain: number;
+      chanceOfSnow: number;
+    }>;
+  };
+}
+
+export const weatherApi = {
+  /**
+   * Get weather forecast for a location and date range (public endpoint)
+   * This endpoint does not require authentication, so we explicitly exclude auth headers
+   */
+  getForecast: async (
+    location: string,
+    startDate: string,
+    endDate: string
+  ): Promise<WeatherForecastResponse> => {
+    const url = `${API_BASE_URL}/api/v1/weather/forecast?location=${encodeURIComponent(location)}&start_date=${startDate}&end_date=${endDate}`;
+    
+    // Make request without authentication headers for public endpoint
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.detail || `Weather API Error: ${response.status} ${response.statusText}`
+      );
+    }
+
+    const data = await response.json();
+    return transformToCamelCase<WeatherForecastResponse>(data);
+  },
+};
+
+/**
+ * LLM API Methods
+ */
+export interface GeneratePackingListRequest {
+  destination: string;
+  startDate: string;
+  endDate: string;
+  activities: string[];
+  transport?: string[];
+  weather: any;
+  travelers: any[];
+}
+
+export const llmApi = {
+  /**
+   * Generate context-aware packing list using LLM
+   */
+  generatePackingList: async (data: GeneratePackingListRequest): Promise<PackingItem[]> => {
+    return api.post<PackingItem[]>('/api/v1/llm/generate-packing-list', data);
+  },
+};

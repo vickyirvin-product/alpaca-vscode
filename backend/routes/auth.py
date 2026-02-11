@@ -11,6 +11,7 @@ from auth.security import (
     create_access_token,
     create_refresh_token,
     verify_token,
+    verify_token_optional,
     verify_refresh_token
 )
 from pydantic import BaseModel
@@ -117,14 +118,12 @@ async def auth_callback_google(request: Request):
         access_token = create_access_token(data={"sub": email})
         refresh_token = create_refresh_token(data={"sub": email})
         
-        # Return tokens
-        # In production, you might want to redirect to frontend with tokens in URL params
-        # or set them as HTTP-only cookies
-        return Token(
-            access_token=access_token,
-            refresh_token=refresh_token,
-            token_type="bearer"
-        )
+        # Redirect to frontend with tokens in URL fragment
+        # Using fragment (#) instead of query params for better security
+        frontend_url = "http://localhost:8081"
+        redirect_url = f"{frontend_url}/auth/callback?access_token={access_token}&refresh_token={refresh_token}&token_type=bearer"
+        
+        return RedirectResponse(url=redirect_url)
         
     except HTTPException:
         raise
@@ -213,6 +212,43 @@ async def get_current_user(token_data: TokenData = Depends(verify_token)) -> Use
         created_at=user["created_at"],
         updated_at=user.get("updated_at")
     )
+
+
+async def get_current_user_optional(token_data: Optional[TokenData] = Depends(verify_token_optional)) -> Optional[User]:
+    """
+    Dependency to get the current authenticated user (optional).
+    
+    Returns None if no valid token is provided instead of raising an exception.
+    Useful for endpoints that work with or without authentication.
+    
+    Args:
+        token_data: Token data from JWT verification (optional)
+        
+    Returns:
+        Current user object or None if not authenticated
+    """
+    if not token_data:
+        return None
+        
+    try:
+        db = get_db()
+        users_collection = db.users
+        
+        user = await users_collection.find_one({"email": token_data.email})
+        if not user:
+            return None
+        
+        # Convert MongoDB document to User model
+        return User(
+            id=str(user["_id"]),
+            email=user["email"],
+            full_name=user.get("full_name"),
+            avatar_url=user.get("avatar_url"),
+            created_at=user["created_at"],
+            updated_at=user.get("updated_at")
+        )
+    except Exception:
+        return None
 
 
 @router.get("/users/me", response_model=User)

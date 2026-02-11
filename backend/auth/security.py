@@ -12,6 +12,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # HTTP Bearer token scheme
 security = HTTPBearer()
+optional_security = HTTPBearer(auto_error=False)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -169,6 +170,41 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) 
             detail=f"Could not validate credentials: {str(e)}",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+def verify_token_optional(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(optional_security)
+) -> Optional[TokenData]:
+    """
+    Verify JWT token from Authorization header (optional).
+    
+    Returns None if no token is provided instead of raising an exception.
+    
+    Args:
+        credentials: HTTP Bearer credentials (optional)
+        
+    Returns:
+        TokenData object containing user email, or None if no token provided
+    """
+    if not credentials:
+        return None
+    
+    try:
+        token = credentials.credentials
+        payload = decode_token(token)
+        
+        # Verify it's an access token
+        if payload.type != "access":
+            return None
+        
+        email: str = payload.sub
+        if email is None:
+            return None
+        
+        return TokenData(email=email)
+        
+    except Exception:
+        return None
 
 
 def verify_refresh_token(token: str) -> str:

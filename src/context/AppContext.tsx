@@ -1,11 +1,21 @@
 // App Context Provider
 import { useState, createContext, useContext, ReactNode, useEffect } from 'react';
 import { TripInfo, PackingItem, Traveler, ItemCategory } from '@/types/packing';
-import { mockTrip, mockPackingItems, mockTravelers } from '@/data/mockData';
 import { User, AuthState } from '@/types/auth';
-import { authApi, tokenManager, tripApi, packingApi } from '@/lib/api';
+import { authApi, tokenManager, tripApi, packingApi, weatherApi, llmApi } from '@/lib/api';
 import { Trip, CreateTripRequest, UpdateTripRequest, PackingListForPerson, AddItemRequest, UpdateItemRequest } from '@/types/trip';
 import { toast } from '@/hooks/use-toast';
+import {
+  generateGuestTripId,
+  saveGuestTrip,
+  getGuestTrip,
+  getAllGuestTrips,
+  updateGuestTrip,
+  deleteGuestTrip,
+  isGuestTripId,
+  updateGuestTripPackingItems,
+  GuestTrip
+} from '@/lib/guestStorage';
 
 interface AppState {
   trip: TripInfo | null;
@@ -32,7 +42,6 @@ interface AppContextType extends AppState {
   getPackingProgress: (personId: string) => { packed: number; total: number };
   addItem: (item: Omit<PackingItem, 'id'>) => void;
   updateItem: (itemId: string, updates: Partial<PackingItem>) => void;
-  resetToMockData: () => void;
   delegateItems: (itemIds: string[], fromPersonId: string, toPersonId: string) => void;
   delegateCategory: (category: ItemCategory, fromPersonId: string, toPersonId: string) => string[];
   getTravelerName: (personId: string) => string;
@@ -100,17 +109,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // Optimistic update
     const previousItems = state.packingItems;
+    const updatedItems = state.packingItems.map(item =>
+      item.id === itemId ? { ...item, isPacked: !item.isPacked } : item
+    );
+    
     setState(prev => ({
       ...prev,
-      packingItems: prev.packingItems.map(item =>
-        item.id === itemId ? { ...item, isPacked: !item.isPacked } : item
-      ),
+      packingItems: updatedItems,
     }));
 
     try {
-      await packingApi.toggleItemPacked(state.currentTrip.id, itemId);
-      // Refresh trip to get updated data
-      await selectTrip(state.currentTrip.id);
+      if (isGuestTripId(state.currentTrip.id)) {
+        // Guest mode: update localStorage
+        updateGuestTripPackingItems(state.currentTrip.id, updatedItems);
+      } else {
+        // Authenticated: update via API
+        await packingApi.toggleItemPacked(state.currentTrip.id, itemId);
+        // Refresh trip to get updated data
+        await selectTrip(state.currentTrip.id);
+      }
     } catch (error) {
       console.error('Failed to toggle item packed status:', error);
       // Rollback on error
@@ -181,16 +198,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   };
 
-  const resetToMockData = () => {
-    setState(prev => ({
-      ...prev,
-      trip: mockTrip,
-      packingItems: mockPackingItems,
-      travelers: mockTravelers,
-      kidMode: false,
-      hasCompletedOnboarding: true,
-    }));
-  };
 
   const getTravelerName = (personId: string): string => {
     const traveler = state.travelers.find(t => t.id === personId);
@@ -352,18 +359,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
    * Helper function to convert Trip to TripInfo for backward compatibility
    */
   const convertTripToTripInfo = (trip: Trip): TripInfo => {
+    if (!trip.weatherData) {
+      throw new Error('Trip weather data is missing. Cannot display trip without weather information.');
+    }
+    
     return {
       id: trip.id,
       destination: trip.destination,
       startDate: trip.startDate,
       endDate: trip.endDate,
       duration: trip.duration,
-      weather: trip.weatherData || {
-        avgTemp: 20,
-        tempUnit: 'C',
-        conditions: ['sunny'],
-        recommendation: 'Pack light clothing',
-      },
+      weather: trip.weatherData,
       travelers: trip.travelers.map(t => ({
         id: t.id,
         name: t.name,
@@ -372,6 +378,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         avatar: t.avatar,
       })),
       createdAt: trip.createdAt,
+      activities: trip.activities || [],
     };
   };
 
@@ -379,10 +386,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setState(prev => ({ ...prev, isLoadingTrips: true, tripError: null }));
 
     try {
-      const response = await tripApi.getTrips();
+      let trips: Trip[] = [];
+      
+      if (state.auth.isAuthenticated) {
+        // Load trips from API
+        const response = await tripApi.getTrips();
+        trips = response.trips;
+      } else {
+        // Load guest trips from localStorage
+        trips = getAllGuestTrips();
+      }
+      
       setState(prev => ({
         ...prev,
-        trips: response.trips,
+        trips,
         isLoadingTrips: false,
         tripError: null,
       }));
@@ -400,7 +417,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setState(prev => ({ ...prev, isLoadingTrips: true, tripError: null }));
 
     try {
-      const trip = await tripApi.getTrip(tripId);
+      let trip: Trip;
+      
+      if (isGuestTripId(tripId)) {
+        // Load guest trip from localStorage
+        const guestTrip = getGuestTrip(tripId);
+        if (!guestTrip) {
+          throw new Error('Guest trip not found');
+        }
+        trip = guestTrip;
+      } else {
+        // Load trip from API
+        trip = await tripApi.getTrip(tripId);
+      }
       
       // Convert to legacy format for backward compatibility
       const tripInfo = convertTripToTripInfo(trip);
@@ -430,8 +459,153 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setState(prev => ({ ...prev, isLoadingTrips: true, tripError: null }));
 
     try {
-      const trip = await tripApi.createTrip(data);
+      let trip: Trip | GuestTrip;
       
+      // Check if user is authenticated
+      if (state.auth.isAuthenticated) {
+        // Authenticated: create trip via API
+        trip = await tripApi.createTrip(data);
+      } else {
+        // Guest mode: create trip locally with real weather data
+        const guestTripId = generateGuestTripId();
+        
+        // Calculate duration
+        const start = new Date(data.startDate);
+        const end = new Date(data.endDate);
+        const durationDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // Fetch real weather data for guest mode
+        const weatherResponse = await weatherApi.getForecast(
+          data.destination,
+          data.startDate,
+          data.endDate
+        );
+        
+        const weatherData = {
+          avgTemp: weatherResponse.avgTemp,
+          tempUnit: weatherResponse.tempUnit as 'C' | 'F',
+          conditions: weatherResponse.conditions as ('sunny' | 'rainy' | 'snowy' | 'cloudy' | 'mixed')[],
+          recommendation: weatherResponse.recommendation,
+        };
+        
+        // Prepare travelers with IDs and avatars
+        const travelers = data.travelers.map((t, idx) => {
+          // Assign emoji avatars based on traveler type and index
+          let avatar = '👤'; // default adult
+          if (t.type === 'adult') {
+            avatar = idx === 0 ? '👩' : '👨'; // First adult is mom, second is dad
+          } else if (t.type === 'child') {
+            // Alternate between girl and boy emojis for children
+            avatar = idx % 2 === 0 ? '👧' : '👦';
+          } else if (t.type === 'infant') {
+            avatar = '👶';
+          }
+          
+          return {
+            ...t,
+            id: `guest-traveler-${idx}`,
+            avatar,
+          };
+        });
+        
+        // Generate context-aware packing lists using LLM
+        console.log('Generating packing list with LLM for guest trip...');
+        console.log('🔍 DEBUG - Activities being sent to LLM:', data.activities);
+        console.log('🔍 DEBUG - Full request data:', {
+          destination: data.destination,
+          startDate: data.startDate,
+          endDate: data.endDate,
+          activities: data.activities || [],
+          transport: data.transport || [],
+          travelers: travelers.map(t => ({ id: t.id, name: t.name, type: t.type })),
+        });
+        console.log('🔍 DEBUG - About to call LLM API with:', {
+          destination: data.destination,
+          startDate: data.startDate,
+          endDate: data.endDate,
+          activities: data.activities || [],
+          transport: data.transport || [],
+          travelerCount: travelers.length
+        });
+        
+        const llmItems = await llmApi.generatePackingList({
+          destination: data.destination,
+          startDate: data.startDate,
+          endDate: data.endDate,
+          activities: data.activities || [],
+          transport: data.transport || [],
+          weather: weatherData,
+          travelers: travelers,
+        });
+        
+        console.log('🔍 DEBUG - LLM API call completed');
+        console.log('🔍 DEBUG - LLM returned items:', llmItems);
+        console.log('🔍 DEBUG - Number of items:', llmItems ? llmItems.length : 'llmItems is null/undefined');
+        console.log('🔍 DEBUG - Sample item:', llmItems && llmItems.length > 0 ? llmItems[0] : 'No items');
+        
+        // Group items by person to create packing lists
+        const itemsByPerson = new Map<string, PackingItem[]>();
+        llmItems.forEach(item => {
+          console.log('🔍 DEBUG - Processing item:', item.name, 'for person:', item.personId);
+          if (!itemsByPerson.has(item.personId)) {
+            itemsByPerson.set(item.personId, []);
+          }
+          itemsByPerson.get(item.personId)!.push(item);
+        });
+        
+        console.log('🔍 DEBUG - Items grouped by person:', Array.from(itemsByPerson.entries()).map(([id, items]) => ({ id, count: items.length })));
+        
+        // Create packing lists from grouped items
+        const packingLists = travelers.map(traveler => {
+          const items = itemsByPerson.get(traveler.id) || [];
+          const categories = [...new Set(items.map(item => item.category))];
+          
+          console.log(`🔍 DEBUG - Creating packing list for ${traveler.name}:`, {
+            travelerId: traveler.id,
+            itemCount: items.length,
+            categories: categories
+          });
+          
+          return {
+            personId: traveler.id,
+            personName: traveler.name,
+            categories: categories.length > 0 ? categories : ['clothing', 'toiletries', 'electronics', 'misc'],
+            items: items,
+          };
+        });
+        
+        console.log('🔍 DEBUG - Final packingLists structure:', packingLists.map(pl => ({
+          personName: pl.personName,
+          personId: pl.personId,
+          itemCount: pl.items.length,
+          categories: pl.categories
+        })));
+        
+        console.log('Successfully generated LLM-based packing lists for guest trip');
+        
+        // Create guest trip with LLM-generated packing lists
+        const guestTrip: GuestTrip = {
+          id: guestTripId,
+          userId: 'guest',
+          destination: data.destination,
+          startDate: data.startDate,
+          endDate: data.endDate,
+          duration: durationDays,
+          travelers: travelers,
+          activities: data.activities || [],
+          transport: data.transport || [],
+          packingLists: packingLists,
+          weatherData,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          isGuestMode: true,
+        };
+        
+        // Save to localStorage
+        saveGuestTrip(guestTrip);
+        trip = guestTrip;
+      }
+        
       // Convert to legacy format for backward compatibility
       const tripInfo = convertTripToTripInfo(trip);
       const packingItems = flattenPackingLists(trip.packingLists);
@@ -459,6 +633,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       throw error;
     }
   };
+  
 
   const updateTrip = async (tripId: string, data: UpdateTripRequest): Promise<Trip> => {
     setState(prev => ({ ...prev, isLoadingTrips: true, tripError: null }));
@@ -538,21 +713,52 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const newItem = await packingApi.addPackingItem(state.currentTrip.id, data);
-      
-      // Add to local state
-      setState(prev => ({
-        ...prev,
-        packingItems: [...prev.packingItems, newItem],
-      }));
+      if (isGuestTripId(state.currentTrip.id)) {
+        // Guest mode: add item locally
+        const newItem: PackingItem = {
+          id: `guest-item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          name: data.name,
+          emoji: data.emoji || '📦',
+          quantity: data.quantity || 1,
+          category: data.category,
+          isPacked: false,
+          isEssential: data.isEssential || false,
+          visibleToKid: true,
+          personId: data.personId,
+          notes: data.notes,
+        };
+        
+        const updatedItems = [...state.packingItems, newItem];
+        setState(prev => ({
+          ...prev,
+          packingItems: updatedItems,
+        }));
+        
+        // Update localStorage
+        updateGuestTripPackingItems(state.currentTrip.id, updatedItems);
+        
+        toast({
+          title: 'Success',
+          description: 'Item added successfully',
+        });
+      } else {
+        // Authenticated: add via API
+        const newItem = await packingApi.addPackingItem(state.currentTrip.id, data);
+        
+        // Add to local state
+        setState(prev => ({
+          ...prev,
+          packingItems: [...prev.packingItems, newItem],
+        }));
 
-      toast({
-        title: 'Success',
-        description: 'Item added successfully',
-      });
+        toast({
+          title: 'Success',
+          description: 'Item added successfully',
+        });
 
-      // Refresh trip to ensure consistency
-      await selectTrip(state.currentTrip.id);
+        // Refresh trip to ensure consistency
+        await selectTrip(state.currentTrip.id);
+      }
     } catch (error) {
       console.error('Failed to add packing item:', error);
       toast({
@@ -576,23 +782,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // Optimistic update
     const previousItems = state.packingItems;
+    const updatedItems = state.packingItems.map(item =>
+      item.id === itemId ? { ...item, ...data } : item
+    );
+    
     setState(prev => ({
       ...prev,
-      packingItems: prev.packingItems.map(item =>
-        item.id === itemId ? { ...item, ...data } : item
-      ),
+      packingItems: updatedItems,
     }));
 
     try {
-      await packingApi.updatePackingItem(state.currentTrip.id, itemId, data);
-      
-      toast({
-        title: 'Success',
-        description: 'Item updated successfully',
-      });
+      if (isGuestTripId(state.currentTrip.id)) {
+        // Guest mode: update localStorage
+        updateGuestTripPackingItems(state.currentTrip.id, updatedItems);
+        
+        toast({
+          title: 'Success',
+          description: 'Item updated successfully',
+        });
+      } else {
+        // Authenticated: update via API
+        await packingApi.updatePackingItem(state.currentTrip.id, itemId, data);
+        
+        toast({
+          title: 'Success',
+          description: 'Item updated successfully',
+        });
 
-      // Refresh trip to ensure consistency
-      await selectTrip(state.currentTrip.id);
+        // Refresh trip to ensure consistency
+        await selectTrip(state.currentTrip.id);
+      }
     } catch (error) {
       console.error('Failed to update packing item:', error);
       // Rollback on error
@@ -621,18 +840,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // Optimistic update
     const previousItems = state.packingItems;
+    const updatedItems = state.packingItems.filter(item => item.id !== itemId);
+    
     setState(prev => ({
       ...prev,
-      packingItems: prev.packingItems.filter(item => item.id !== itemId),
+      packingItems: updatedItems,
     }));
 
     try {
-      await packingApi.deletePackingItem(state.currentTrip.id, itemId);
-      
-      toast({
-        title: 'Success',
-        description: 'Item deleted successfully',
-      });
+      if (isGuestTripId(state.currentTrip.id)) {
+        // Guest mode: update localStorage
+        updateGuestTripPackingItems(state.currentTrip.id, updatedItems);
+        
+        toast({
+          title: 'Success',
+          description: 'Item deleted successfully',
+        });
+      } else {
+        // Authenticated: delete via API
+        await packingApi.deletePackingItem(state.currentTrip.id, itemId);
+        
+        toast({
+          title: 'Success',
+          description: 'Item deleted successfully',
+        });
+      }
     } catch (error) {
       console.error('Failed to delete packing item:', error);
       // Rollback on error
@@ -675,33 +907,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Optimistic update
     const previousItems = state.packingItems;
     const fromName = getTravelerName(fromPersonId);
+    const updatedItems = state.packingItems.map(i =>
+      i.id === itemId
+        ? {
+            ...i,
+            personId: toPersonId,
+            delegationInfo: {
+              fromPersonId,
+              fromPersonName: fromName,
+              delegatedAt: new Date().toISOString(),
+            },
+          }
+        : i
+    );
+    
     setState(prev => ({
       ...prev,
-      packingItems: prev.packingItems.map(i =>
-        i.id === itemId
-          ? {
-              ...i,
-              personId: toPersonId,
-              delegationInfo: {
-                fromPersonId,
-                fromPersonName: fromName,
-                delegatedAt: new Date().toISOString(),
-              },
-            }
-          : i
-      ),
+      packingItems: updatedItems,
     }));
 
     try {
-      await packingApi.delegateItem(state.currentTrip.id, itemId, fromPersonId, toPersonId);
-      
-      toast({
-        title: 'Success',
-        description: 'Item delegated successfully',
-      });
+      if (isGuestTripId(state.currentTrip.id)) {
+        // Guest mode: update localStorage
+        updateGuestTripPackingItems(state.currentTrip.id, updatedItems);
+        
+        toast({
+          title: 'Success',
+          description: 'Item delegated successfully',
+        });
+      } else {
+        // Authenticated: delegate via API
+        await packingApi.delegateItem(state.currentTrip.id, itemId, fromPersonId, toPersonId);
+        
+        toast({
+          title: 'Success',
+          description: 'Item delegated successfully',
+        });
 
-      // Refresh trip to ensure consistency
-      await selectTrip(state.currentTrip.id);
+        // Refresh trip to ensure consistency
+        await selectTrip(state.currentTrip.id);
+      }
     } catch (error) {
       console.error('Failed to delegate item:', error);
       // Rollback on error
@@ -729,15 +974,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      await packingApi.addCategory(state.currentTrip.id, personId, categoryName);
-      
-      toast({
-        title: 'Success',
-        description: 'Category added successfully',
-      });
+      if (isGuestTripId(state.currentTrip.id)) {
+        // Guest mode: categories are managed locally, just show success
+        // In guest mode, categories are dynamically derived from items
+        toast({
+          title: 'Success',
+          description: 'Category added successfully',
+        });
+      } else {
+        // Authenticated: add via API
+        await packingApi.addCategory(state.currentTrip.id, personId, categoryName);
+        
+        toast({
+          title: 'Success',
+          description: 'Category added successfully',
+        });
 
-      // Refresh trip to ensure consistency
-      await selectTrip(state.currentTrip.id);
+        // Refresh trip to ensure consistency
+        await selectTrip(state.currentTrip.id);
+      }
     } catch (error) {
       console.error('Failed to add category:', error);
       toast({
@@ -763,7 +1018,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         getPackingProgress,
         addItem,
         updateItem,
-        resetToMockData,
         delegateItems,
         delegateCategory,
         getTravelerName,

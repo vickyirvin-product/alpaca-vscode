@@ -81,8 +81,8 @@ class WeatherService:
         if not forecast_days:
             return self._get_default_weather()
         
-        # Calculate average temperature
-        temps = [day["day"]["avgtemp_c"] for day in forecast_days]
+        # Calculate average temperature in Fahrenheit (US standard)
+        temps = [day["day"]["avgtemp_f"] for day in forecast_days]
         avg_temp = sum(temps) / len(temps)
         
         # Determine conditions
@@ -98,7 +98,7 @@ class WeatherService:
         
         return {
             "avg_temp": round(avg_temp, 1),
-            "temp_unit": "C",
+            "temp_unit": "F",
             "conditions": conditions,
             "recommendation": recommendation,
             "forecast_data": {
@@ -107,9 +107,9 @@ class WeatherService:
                 "daily_forecasts": [
                     {
                         "date": day["date"],
-                        "max_temp_c": day["day"]["maxtemp_c"],
-                        "min_temp_c": day["day"]["mintemp_c"],
-                        "avg_temp_c": day["day"]["avgtemp_c"],
+                        "max_temp_f": day["day"]["maxtemp_f"],
+                        "min_temp_f": day["day"]["mintemp_f"],
+                        "avg_temp_f": day["day"]["avgtemp_f"],
                         "condition": day["day"]["condition"]["text"],
                         "chance_of_rain": day["day"]["daily_chance_of_rain"],
                         "chance_of_snow": day["day"]["daily_chance_of_snow"]
@@ -136,13 +136,17 @@ class WeatherService:
             rain_chance = day["day"]["daily_chance_of_rain"]
             snow_chance = day["day"]["daily_chance_of_snow"]
             
-            # Categorize conditions
+            # Categorize conditions - prioritize snow over rain
+            # Check for snow first (higher priority in winter locations)
             if snow_chance > 30 or "snow" in condition_text:
                 conditions_set.add("snowy")
+            # Only check rain if snow is not present
             elif rain_chance > 30 or "rain" in condition_text:
                 conditions_set.add("rainy")
+            # Check for cloudy conditions
             elif "cloud" in condition_text or "overcast" in condition_text:
                 conditions_set.add("cloudy")
+            # Default to sunny/clear
             elif "sun" in condition_text or "clear" in condition_text:
                 conditions_set.add("sunny")
         
@@ -163,7 +167,7 @@ class WeatherService:
         Generate packing recommendation based on weather.
         
         Args:
-            avg_temp: Average temperature in Celsius
+            avg_temp: Average temperature in Fahrenheit
             conditions: List of weather conditions
             total_days: Total trip duration
             forecast_days: Forecast data
@@ -173,12 +177,12 @@ class WeatherService:
         """
         recommendations = []
         
-        # Temperature-based recommendations
-        if avg_temp < 10:
+        # Temperature-based recommendations (Fahrenheit)
+        if avg_temp < 50:
             recommendations.append("Pack warm layers and a heavy jacket")
-        elif avg_temp < 20:
+        elif avg_temp < 68:
             recommendations.append("Pack layers - it will be cool")
-        elif avg_temp < 25:
+        elif avg_temp < 77:
             recommendations.append("Pack light layers for mild weather")
         else:
             recommendations.append("Pack light, breathable clothing")
@@ -192,9 +196,9 @@ class WeatherService:
         
         # Check temperature variation
         if forecast_days:
-            temps = [day["day"]["avgtemp_c"] for day in forecast_days]
+            temps = [day["day"]["avgtemp_f"] for day in forecast_days]
             temp_range = max(temps) - min(temps)
-            if temp_range > 10:
+            if temp_range > 18:  # 18°F ≈ 10°C
                 recommendations.append("Temperature varies - pack versatile items")
         
         # Duration note
@@ -208,8 +212,8 @@ class WeatherService:
     def _get_default_weather(self) -> Dict:
         """Return default weather data when API fails."""
         return {
-            "avg_temp": 20.0,
-            "temp_unit": "C",
+            "avg_temp": 68.0,
+            "temp_unit": "F",
             "conditions": ["sunny"],
             "recommendation": "Check local weather closer to your trip date.",
             "forecast_data": None

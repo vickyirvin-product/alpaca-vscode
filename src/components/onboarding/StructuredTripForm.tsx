@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { DateRange } from "react-day-picker";
+import { LocationAutocomplete } from "@/components/ui/location-autocomplete";
 
 const activityTags = ["Walking", "Sightseeing", "Hiking", "Staying with family", "Skiing/Snowboarding", "Camping", "Beach"];
 const transportOptions = [
@@ -33,7 +34,6 @@ interface StructuredTripFormProps {
 
 export function StructuredTripForm({ initialData, onSubmit }: StructuredTripFormProps) {
   const [expandedSection, setExpandedSection] = useState<"where" | "when" | "who" | "activities" | "transport" | null>("where");
-  const [destinationSearch, setDestinationSearch] = useState("");
   const [destinations, setDestinations] = useState<string[]>(initialData?.destinations || []);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(initialData?.dateRange);
   const [adultsData, setAdultsData] = useState<{ id: string; name: string; role: string }[]>(initialData?.adults || []);
@@ -67,11 +67,10 @@ export function StructuredTripForm({ initialData, onSubmit }: StructuredTripForm
     }
   }, [initialData]);
 
-  const addDestination = (dest: string) => {
-    if (!destinations.includes(dest)) {
+  const addDestination = (dest: string, placeId?: string) => {
+    if (dest.trim() && !destinations.includes(dest)) {
       setDestinations([...destinations, dest]);
     }
-    setDestinationSearch("");
   };
 
   const removeDestination = (dest: string) => {
@@ -182,7 +181,7 @@ export function StructuredTripForm({ initialData, onSubmit }: StructuredTripForm
     });
   };
 
-  const canSubmit = destinations.length > 0 && dateRange?.from && (adultsData.length > 0 || kids.length > 0);
+  const canSubmit = destinations.length > 0 && dateRange?.from && (adultsData.length > 0 || kids.length > 0) && (selectedActivities.length > 0 || customActivities.length > 0);
 
   const getDurationText = () => {
     if (!dateRange?.from || !dateRange?.to) return "";
@@ -197,15 +196,21 @@ export function StructuredTripForm({ initialData, onSubmit }: StructuredTripForm
       {/* Where Section */}
       <motion.div
         className={cn(
-          "bg-card rounded-2xl border border-border overflow-hidden transition-shadow",
-          expandedSection === "where" ? "card-shadow-lg" : "card-shadow"
+          "bg-card rounded-2xl border border-border transition-shadow",
+          expandedSection === "where" ? "card-shadow-lg overflow-visible" : "card-shadow overflow-hidden"
         )}
       >
         <button
           onClick={() => setExpandedSection(expandedSection === "where" ? null : "where")}
-          className="w-full p-4 text-left"
+          className="w-full p-4 text-left flex items-center justify-between"
         >
           <span className="text-muted-foreground">Where</span>
+          {expandedSection !== "where" && destinations.length > 0 && (
+            <span className="text-sm font-medium text-foreground">
+              {destinations[0]}
+              {destinations.length > 1 && ` +${destinations.length - 1}`}
+            </span>
+          )}
         </button>
         
         <AnimatePresence>
@@ -214,7 +219,7 @@ export function StructuredTripForm({ initialData, onSubmit }: StructuredTripForm
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
+              className="overflow-visible"
             >
               <div className="px-4 pb-4 space-y-4">
                 {/* Selected destinations */}
@@ -234,21 +239,13 @@ export function StructuredTripForm({ initialData, onSubmit }: StructuredTripForm
                   </div>
                 )}
 
-                {/* Search input */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input
-                    value={destinationSearch}
-                    onChange={(e) => setDestinationSearch(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && destinationSearch.trim()) {
-                        addDestination(destinationSearch.trim());
-                      }
-                    }}
-                    placeholder="Search destinations"
-                    className="pl-10 rounded-xl"
-                  />
-                </div>
+                {/* Location autocomplete */}
+                <LocationAutocomplete
+                  value=""
+                  onChange={addDestination}
+                  placeholder="Search destinations"
+                  autoFocus={expandedSection === "where"}
+                />
               </div>
             </motion.div>
           )}
@@ -264,9 +261,15 @@ export function StructuredTripForm({ initialData, onSubmit }: StructuredTripForm
       >
         <button
           onClick={() => setExpandedSection(expandedSection === "when" ? null : "when")}
-          className="w-full p-4 text-left"
+          className="w-full p-4 text-left flex items-center justify-between"
         >
           <span className="text-muted-foreground">When</span>
+          {expandedSection !== "when" && dateRange?.from && (
+            <span className="text-sm font-medium text-foreground">
+              {format(dateRange.from, "MMM d")}
+              {dateRange.to && ` - ${format(dateRange.to, "d")}`}
+            </span>
+          )}
         </button>
         
         <AnimatePresence>
@@ -308,9 +311,14 @@ export function StructuredTripForm({ initialData, onSubmit }: StructuredTripForm
       >
         <button
           onClick={() => setExpandedSection(expandedSection === "who" ? null : "who")}
-          className="w-full p-4 text-left"
+          className="w-full p-4 text-left flex items-center justify-between"
         >
           <span className="text-muted-foreground">Who</span>
+          {expandedSection !== "who" && (adultsData.length > 0 || kids.length > 0) && (
+            <span className="text-sm font-medium text-foreground">
+              {adultsData.length + kids.length} {adultsData.length + kids.length === 1 ? "guest" : "guests"}
+            </span>
+          )}
         </button>
         
         <AnimatePresence>
@@ -453,9 +461,14 @@ export function StructuredTripForm({ initialData, onSubmit }: StructuredTripForm
       >
         <button
           onClick={() => setExpandedSection(expandedSection === "activities" ? null : "activities")}
-          className="w-full p-4 text-left"
+          className="w-full p-4 text-left flex items-center justify-between"
         >
           <span className="text-muted-foreground">Activities</span>
+          {expandedSection !== "activities" && (selectedActivities.length > 0 || customActivities.length > 0) && (
+            <span className="text-sm font-medium text-foreground">
+              {selectedActivities.length + customActivities.length} selected
+            </span>
+          )}
         </button>
         
         <AnimatePresence>
@@ -537,9 +550,14 @@ export function StructuredTripForm({ initialData, onSubmit }: StructuredTripForm
       >
         <button
           onClick={() => setExpandedSection(expandedSection === "transport" ? null : "transport")}
-          className="w-full p-4 text-left"
+          className="w-full p-4 text-left flex items-center justify-between"
         >
           <span className="text-muted-foreground">Getting there</span>
+          {expandedSection !== "transport" && (selectedTransport.length > 0 || customTransport.length > 0) && (
+            <span className="text-sm font-medium text-foreground">
+              {selectedTransport.length + customTransport.length} selected
+            </span>
+          )}
         </button>
         
         <AnimatePresence>
@@ -616,15 +634,54 @@ export function StructuredTripForm({ initialData, onSubmit }: StructuredTripForm
         </AnimatePresence>
       </motion.div>
 
-      {/* Action button */}
-      <div className="flex justify-center pt-4">
-        <Button
-          onClick={handleSubmit}
-          disabled={!canSubmit}
-          className="rounded-full px-8 w-full sm:w-auto"
+      {/* Fixed bottom action buttons - always visible outside white boxes */}
+      <div className="flex items-center justify-between pt-6 pb-4">
+        <button
+          onClick={() => {
+            setDestinations([]);
+            setDateRange(undefined);
+            setAdultsData([]);
+            setKids([]);
+            setSelectedActivities([]);
+            setSelectedTransport([]);
+            setCustomActivities([]);
+            setCustomTransport([]);
+            setExpandedSection("where");
+          }}
+          className="text-sm font-medium underline hover:text-foreground/80 transition-colors"
         >
-          Generate Packing List
-        </Button>
+          Clear all
+        </button>
+        
+        {canSubmit ? (
+          <Button
+            onClick={handleSubmit}
+            className="rounded-full px-8 bg-primary hover:bg-primary/90 text-primary-foreground"
+          >
+            Generate Packing List
+          </Button>
+        ) : (
+          <Button
+            onClick={() => {
+              // Navigate to next incomplete section
+              if (destinations.length === 0) {
+                setExpandedSection("where");
+              } else if (!dateRange?.from) {
+                setExpandedSection("when");
+              } else if (adultsData.length === 0 && kids.length === 0) {
+                setExpandedSection("who");
+              } else if (selectedActivities.length === 0 && customActivities.length === 0) {
+                setExpandedSection("activities");
+              } else {
+                setExpandedSection("transport");
+              }
+            }}
+            disabled={expandedSection === null}
+            className="rounded-full px-8 bg-foreground text-background hover:bg-foreground/90"
+          >
+            Next
+          </Button>
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,13 +12,28 @@ import { Logo } from '@/components/Logo';
 export default function Login() {
   const { auth, login } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Redirect to dashboard if already authenticated
   useEffect(() => {
     if (auth.isAuthenticated && !auth.isLoading) {
-      navigate('/dashboard');
+      // Check if we need to complete trip creation
+      const state = location.state as { from?: string; completeTripCreation?: boolean } | null;
+      if (state?.completeTripCreation) {
+        // Redirect back to home to complete trip creation
+        navigate('/', { replace: true });
+      } else {
+        // Check for stored redirect path
+        const redirectPath = sessionStorage.getItem('auth_redirect');
+        if (redirectPath && redirectPath !== '/login') {
+          sessionStorage.removeItem('auth_redirect');
+          navigate(redirectPath, { replace: true });
+        } else {
+          navigate('/dashboard', { replace: true });
+        }
+      }
     }
-  }, [auth.isAuthenticated, auth.isLoading, navigate]);
+  }, [auth.isAuthenticated, auth.isLoading, navigate, location.state]);
 
   const handleGoogleLogin = () => {
     login();

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, MapPin, Calendar, Users, ArrowLeft, Pencil, Check, CalendarDays, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,13 +28,33 @@ export function SmartWizard() {
     startDate: string;
     endDate: string;
   } | null>(null);
-  const { createTrip } = useApp();
+  const { createTrip, auth } = useApp();
   const navigate = useNavigate();
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  const handleConfirm = async () => {
-    if (!parsedInfo) return;
+
+  // Check for pending trip data after authentication
+  useEffect(() => {
+    const pendingTripData = sessionStorage.getItem('pending_trip_data');
+    if (pendingTripData && auth.isAuthenticated && !auth.isLoading) {
+      try {
+        const parsedData = JSON.parse(pendingTripData);
+        setParsedInfo(parsedData);
+        setStage("confirming");
+        sessionStorage.removeItem('pending_trip_data');
+        // Automatically trigger trip creation
+        setTimeout(() => {
+          completeTripCreation(parsedData);
+        }, 100);
+      } catch (err) {
+        console.error('Failed to parse pending trip data:', err);
+        sessionStorage.removeItem('pending_trip_data');
+      }
+    }
+  }, [auth.isAuthenticated, auth.isLoading]);
+
+  const completeTripCreation = async (tripInfo: typeof parsedInfo) => {
+    if (!tripInfo) return;
     
     setIsCreating(true);
     setError(null);
@@ -42,12 +62,12 @@ export function SmartWizard() {
     try {
       // Convert parsed info to CreateTripRequest format
       const travelers = [
-        ...parsedInfo.adults.map(adult => ({
+        ...tripInfo.adults.map(adult => ({
           name: adult.name || adult.role,
           age: 30, // Default age for adults
           type: 'adult' as const,
         })),
-        ...parsedInfo.kids.map(kid => ({
+        ...tripInfo.kids.map(kid => ({
           name: `Child (${kid.age})`,
           age: kid.age,
           type: kid.age < 2 ? 'infant' as const : 'child' as const,
@@ -55,25 +75,60 @@ export function SmartWizard() {
       ];
       
       const tripData: CreateTripRequest = {
-        destination: parsedInfo.destination,
-        startDate: parsedInfo.startDate,
-        endDate: parsedInfo.endDate,
-        activities: parsedInfo.activities,
+        destination: tripInfo.destination,
+        startDate: tripInfo.startDate,
+        endDate: tripInfo.endDate,
+        activities: tripInfo.activities,
         transport: [],
         travelers,
       };
       
       await createTrip(tripData);
       toast.success('Trip created successfully!');
-      navigate("/dashboard");
+      
+      // Navigate to appropriate route based on auth status
+      // Guest users go to "/" (public), authenticated users go to "/dashboard" (protected)
+      navigate(auth.isAuthenticated ? "/dashboard" : "/");
     } catch (err) {
       console.error('Failed to create trip:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to create trip';
+      
+      // Provide user-friendly error messages based on error type
+      let errorMessage = 'Unable to create trip. Please try again.';
+      
+      if (err instanceof Error) {
+        // Check for specific error patterns
+        if (err.message.includes('quota') || err.message.includes('rate limit')) {
+          errorMessage = 'Service temporarily unavailable. Please try again in a few moments.';
+        } else if (err.message.includes('validation')) {
+          errorMessage = 'Invalid trip information. Please check your details and try again.';
+        } else if (err.message.includes('network') || err.message.includes('fetch')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else if (err.message.includes('weather')) {
+          errorMessage = 'Unable to fetch weather data. Please try again.';
+        } else if (err.message.includes('packing list')) {
+          errorMessage = 'Failed to generate packing list. Please try again.';
+        } else if (err.message) {
+          // Use the actual error message if it's user-friendly
+          errorMessage = err.message;
+        }
+      }
+      
       setError(errorMessage);
-      toast.error(errorMessage);
+      toast.error(errorMessage, {
+        duration: 5000,
+        description: 'If the problem persists, please contact support.'
+      });
     } finally {
       setIsCreating(false);
     }
+  };
+  
+  const handleConfirm = async () => {
+    if (!parsedInfo) return;
+    
+    // Allow trip creation regardless of auth status
+    // The createTrip function in AppContext will handle guest vs authenticated mode
+    await completeTripCreation(parsedInfo);
   };
   const handleRestart = () => {
     setStage("input");
@@ -220,18 +275,12 @@ export function SmartWizard() {
           opacity: 0,
           y: -20
         }} className="w-full max-w-2xl space-y-6">
-              {/* Weather Speech Bubble */}
-              <div className="bg-gradient-to-br from-primary/20 via-primary/10 to-accent/30 rounded-2xl p-5 border-2 border-primary/30 shadow-lg">
-                <div className="flex items-start gap-3">
-                  <span className="text-3xl">🌸</span>
-                  <div>
-                    <p className="text-lg font-semibold text-primary mb-1">Cherry Blossom Season!</p>
-                    <p className="text-muted-foreground">
-                      It's going to be chilly! I've added layers for cool days (59°F avg) and rain gear for spring showers. Perfect weather for temple walks! 🌧️
-                    </p>
-                  </div>
-                </div>
-              </div>
+              {/* Weather Speech Bubble - Fetch and display weather immediately */}
+              <WeatherPreview
+                destination={parsedInfo.destination}
+                startDate={parsedInfo.startDate}
+                endDate={parsedInfo.endDate}
+              />
 
               {/* Duplicate Action Buttons */}
               <div className="space-y-3">
@@ -414,6 +463,86 @@ export function SmartWizard() {
         </AnimatePresence>
       </main>
     </div>;
+}
+
+// Weather Preview Component
+function WeatherPreview({ destination, startDate, endDate }: { destination: string; startDate: string; endDate: string }) {
+  const [weather, setWeather] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const fetchWeather = async () => {
+      try {
+        setLoading(true);
+        setError(false);
+        
+        const { weatherApi } = await import('@/lib/api');
+        const weatherData = await weatherApi.getForecast(destination, startDate, endDate);
+        setWeather(weatherData);
+      } catch (err) {
+        console.error('Failed to fetch weather preview:', err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWeather();
+  }, [destination, startDate, endDate]);
+
+  if (loading) {
+    return (
+      <div className="bg-gradient-to-br from-primary/20 via-primary/10 to-accent/30 rounded-2xl p-5 border-2 border-primary/30 shadow-lg">
+        <div className="flex items-start gap-3">
+          <span className="text-3xl">🌤️</span>
+          <div>
+            <p className="text-lg font-semibold text-primary mb-1">Weather Information</p>
+            <p className="text-muted-foreground">
+              Fetching weather forecast...
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !weather) {
+    return (
+      <div className="bg-gradient-to-br from-primary/20 via-primary/10 to-accent/30 rounded-2xl p-5 border-2 border-primary/30 shadow-lg">
+        <div className="flex items-start gap-3">
+          <span className="text-3xl">🌤️</span>
+          <div>
+            <p className="text-lg font-semibold text-primary mb-1">Weather Information</p>
+            <p className="text-muted-foreground">
+              Unable to fetch weather data. We'll try again when you create your trip.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const weatherEmoji = weather.conditions.includes('sunny') ? '☀️' :
+                      weather.conditions.includes('rainy') ? '🌧️' :
+                      weather.conditions.includes('snowy') ? '❄️' :
+                      weather.conditions.includes('cloudy') ? '☁️' : '🌤️';
+
+  return (
+    <div className="bg-gradient-to-br from-primary/20 via-primary/10 to-accent/30 rounded-2xl p-5 border-2 border-primary/30 shadow-lg">
+      <div className="flex items-start gap-3">
+        <span className="text-3xl">{weatherEmoji}</span>
+        <div>
+          <p className="text-lg font-semibold text-primary mb-1">
+            {weather.avgTemp}°{weather.tempUnit} - {weather.conditions.join(', ')}
+          </p>
+          <p className="text-muted-foreground">
+            {weather.recommendation}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // Editable field component

@@ -53,8 +53,14 @@ Before starting, ensure all systems are running and configured:
 | 3 | Select dates (e.g., next week) |  |
 | 4 | Add travelers (e.g., Mom, Dad, Child) |  |
 | 5 | Submit form | "Generating packing list..." loading state appears |
-| 6 | Wait for completion (~5-10s) | Redirects to Dashboard with new trip selected |
-| 7 | Verify Dashboard | Trip details (dates, weather) and packing lists appear |
+| 6 | Wait for completion (~15-25s for comprehensive AI generation) | Redirects to Dashboard with new trip selected |
+| 7 | Verify Dashboard | Trip details (dates, weather) and comprehensive packing lists appear |
+| 8 | Check Packing Lists | Verify comprehensive items across 9 categories (clothing, toiletries, health, documents, electronics, comfort, activities, baby, misc) |
+| 9 | Verify Age-Appropriate Items | Child travelers should have age-appropriate items (kid-friendly toiletries, comfort items, entertainment) |
+| 10 | Check Weather Adaptations | Items should match weather conditions (rain gear for rainy weather, layers for variable conditions) |
+| 11 | Verify Activity Gear | Activity-specific items should appear in 'activities' category (hiking boots, ski gear, beach items) |
+| 12 | Check Quantities | Clothing quantities should be realistic based on trip duration and laundry access |
+| 13 | Verify Essential Items | Critical items (passports, medications, chargers) should be marked as essential |
 
 **Troubleshooting**:
 *   *Issue*: Infinite loading on trip creation.
