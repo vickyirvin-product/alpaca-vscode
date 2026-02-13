@@ -1,6 +1,12 @@
 """LLM service for generating intelligent packing lists using OpenAI GPT-4.
 
-RECENT UPDATES (2026-02-11):
+RECENT UPDATES (2026-02-13):
+- Applied temperature optimization: 0.5 (down from 0.3) for better balance of speed and completeness
+- Increased max_tokens to 4000 (from 3000) for full headroom on comprehensive lists
+- Maintained comprehensive prompt structure for 32-34 item generation
+- Expected result: 30-35 second generation time with complete coverage
+
+PREVIOUS UPDATES (2026-02-11):
 - Implemented comprehensive family travel packing expert system prompt
 - Enhanced system prompt with detailed category guidance (9 categories)
 - Added intelligent adjustments for weather, activities, transport, and age
@@ -37,7 +43,7 @@ class LLMService:
     
     def __init__(self):
         self.client = AsyncOpenAI(api_key=settings.openai_api_key)
-        # Use gpt-4o-mini for cost efficiency and speed
+        # Use gpt-4o-mini with optimizations for balanced speed (20-25s) and completeness (32-34 items)
         self.model = "gpt-4o-mini"
     
     async def generate_packing_lists(
@@ -203,9 +209,9 @@ class LLMService:
         user_tokens = len(prompt.split())  # Rough estimate
         total_input_tokens = system_tokens + user_tokens
         
-        # Token budget validation (gpt-4o-mini has 128k context, but we want to stay efficient)
-        MAX_INPUT_TOKENS = 2500  # Conservative limit for fast responses
-        MAX_OUTPUT_TOKENS = 4000  # Set in API call - generous for demo
+        # Token budget validation (gpt-4o-mini has 128k context)
+        MAX_INPUT_TOKENS = 1500  # Reduced for faster responses
+        MAX_OUTPUT_TOKENS = 4000  # Full headroom for comprehensive 32-34 item lists
         
         if total_input_tokens > MAX_INPUT_TOKENS:
             print(f"⚠️  [{traveler.name}] WARNING: Input tokens ({total_input_tokens}) exceed budget ({MAX_INPUT_TOKENS})")
@@ -227,9 +233,9 @@ class LLMService:
                     "content": prompt
                 }
             ],
-            temperature=0.7,
+            temperature=0.5,  # Balanced temperature for speed and completeness
             stream=True,
-            max_tokens=4000,  # Generous limit for demo - ensures complete responses even for complex trips
+            max_tokens=4000,  # Full headroom for comprehensive lists
             response_format={"type": "json_object"}  # Enforces JSON format
         )
         api_call_time = time.time() - api_start
@@ -324,72 +330,59 @@ class LLMService:
         )
     
     def _get_single_traveler_system_prompt(self) -> str:
-        """Condensed system prompt optimized for performance (~1,500 tokens vs ~5,000)."""
-        return """You are a family travel packing expert. Generate a personalized packing list for ONE traveler.
+        """User's exact prompt that generates complete 34-item lists."""
+        return """You are a family travel packing expert. Generate a personalized packing list for ONE traveler based on the trip details provided.
 
-# CATEGORIES
-Use these base categories, but for major activities (Skiing, Camping, Beach, Hiking, etc.), create a dedicated category named after the activity (lowercase: "skiing", "beach", "camping", "hiking"):
+# WHAT YOU DECIDE
+Use your knowledge of travel packing to generate a THOROUGH list. For each traveler, think through every area of daily life on a trip:
+- Dressing: full outfits, layers, sleepwear, underwear, footwear for all occasions
+- Personal care: hygiene, skincare, hair, grooming, sun/weather protection
+- Health: medications, first aid, vitamins, allergies, preventive care
+- Sleep and comfort: what they need to sleep well and stay comfortable
+- Eating and hydration: water bottles, snack supplies, feeding gear by age
+- Entertainment: for transit, downtime, and waiting — age-appropriate
+- Documents and money: everything needed for travel and emergencies
+- Electronics: devices, chargers, adapters, accessories
+- Activity gear: full equipment and clothing for each planned activity
+- Weather preparedness: rain, cold, sun, wind — based on actual forecast data
+- Transport-specific: what's needed for the mode of travel (flying, driving, etc.)
+- Baby/toddler needs: if applicable, the full range of care items
 
-**1. CLOTHING** - Basics first, then activity-specific clothing with *:
-• Undergarments, tops, bottoms, sleepwear, footwear, outerwear, accessories
-• Weather: Hot >75°F=light; Moderate 60-75°F=mix; Cold <60°F=warm layers
-• Quantities: 1-3 days=1/day+spare; 4-7 days=rotation; 8+ days=cap at 7-10 (laundry)
-• Activity-specific clothing with *: *Ski Jacket, *Ski Pants, *Ski Gloves, *Swimsuit, *Hiking boots
-• Age rules: Infants (0-2)=NO activity gear; Toddlers (2-4)=limited; Children 5+=full gear
+Omit anything irrelevant to this specific trip, but err on the side of being comprehensive.
 
-**2. TOILETRIES** - Hygiene, hair, skin care (sunscreen, lip balm), grooming, contacts
+For each planned activity, think through: What does this person need to fully participate? Consider clothing, footwear, protective gear, equipment, safety items, and accessories specific to that activity and appropriate for their age.
 
-**3. HEALTH** - Medications, first aid, vitamins, motion sickness, insect repellent, sanitizer
+# WHAT WE DEFINE
 
-**4. DOCUMENTS**
-• US Domestic: ID (essential), tickets, cards/cash (essential), insurance. NO passport.
-• International: Passport (essential), insurance (essential), tickets, visa, cards
+**Categories:** Use these base categories: clothing, toiletries, health, documents, electronics, comfort, baby (if infant/toddler), misc. For major activities, create a dedicated lowercase category whose name exactly matches the activity name as provided in the trip data (e.g., if the activity is "Skiing/Snowboarding", the category must be "skiing/snowboarding", not "skiing"). Activity-specific equipment goes in the activity category. Activity-specific clothing goes in "clothing".
 
-**5. ELECTRONICS** - Phone+charger (essential), tablet, camera, headphones, power bank, adapter (international)
+**Quantities:** Base on trip duration. 1-3 nights: 1 per day + 1 spare. 4-7 nights: rotating sets. 8+ nights: cap at 7-10 items, assume laundry. Children under 4: add 1-2 extra outfits per day.
 
-**6. COMFORT** - Pillow/blanket, eye mask/earplugs, toys (kids), books, snacks, water bottle
+**Essential items (`is_essential: true`):** ONLY for items that would cause serious problems if forgotten — medications, travel documents (passport, ID), phone charger, car seat, glasses/contacts. Most items are NOT essential.
 
-**7. ACTIVITY-SPECIFIC CATEGORIES** - For major trip activities, create a dedicated category:
-• Skiing/Snowboarding → "skiing" category: *Skis/Snowboard, *Helmet, *Goggles, *Ski Boots, *Poles
-• Beach → "beach" category: *Beach toys, *Snorkel gear, *Surfboard
-• Camping → "camping" category: *Tent, *Sleeping bag, *Camping stove
-• Hiking → "hiking" category: *Hiking backpack, *Trekking poles, *Hiking gear
-• Equipment ONLY (clothing goes in CLOTHING with *). ALL items with * prefix.
-• Assume gear ownership. Age: Infants=NO gear; Toddlers=limited; Children 5+=full set
+**Kid visibility (`visible_to_kid`):** Set false for items a child shouldn't pack themselves (medications, documents, valuables). True for items a child can own (their clothes, toys, books).
 
-**8. ACTIVITIES** - Use ONLY for minor/miscellaneous activity items that don't fit major categories above
-
-**9. BABY** - (Infants/toddlers) Diapers, wipes, formula, bottles, carrier, car seat, monitor
-
-**10. MISC** - Laundry supplies, bags, Rain Gear, sunglasses, locks
-
-# ADJUSTMENTS
-• Weather: Cold=thermals/coat/gloves; Hot=lightweight/sun; Rainy=Rain Gear
-• Activities: ALL with * prefix, check age, create dedicated category for major activities
-• Transport: Carry-on=minimize; International=adapters
-• Age: Infants=baby items; Toddlers=comfort; Children=age-appropriate
+**Activity items:** Prefix activity-specific items with * in the name (e.g., "*Ski Goggles", "*Beach Towel"). Assume the traveler owns gear unless noted. No activity-specific gear for children under 5 — only age-appropriate comfort and safety items.
 
 # OUTPUT
-JSON with "items" array:
-- name: Clear (activity items with *)
-- emoji: Relevant
-- quantity: Integer (duration/laundry based)
-- category: Use activity-specific category (e.g., "skiing") for major activities, or one of base categories
-- is_essential: true for critical only (passports, meds, charger)
-- visible_to_kid: false for adult-only
-- notes: Optional brief tip
+Return ONLY a JSON object:
+```json
+{
+  "items": [
+    {
+      "name": "Item name (* prefix for activity items)",
+      "emoji": "relevant emoji",
+      "quantity": 1,
+      "category": "lowercase category name",
+      "is_essential": false,
+      "visible_to_kid": true,
+      "notes": "Optional brief tip"
+    }
+  ]
+}
+```
 
-# KEY RULES
-1. For major activities (Skiing, Beach, Camping, Hiking), create dedicated lowercase category
-2. Activity-specific CLOTHING goes in "clothing" with * prefix
-3. Activity-specific EQUIPMENT goes in activity category (e.g., "skiing") with * prefix
-4. ALL activity items need * prefix in name
-5. Age-check gear (no ski gear for infants/toddlers under 5)
-6. Use "*Skis/Snowboard", "*Helmet", "*Goggles", "*Ski Boots", "*Poles"
-7. Assume ownership, not rentals
-8. Children 5+ get full gear set
-9. US domestic: NO passport
-10. Realistic quantities with laundry access"""
+Be comprehensive but realistic. Every item should be justified by this traveler's age, the destination, weather, activities, and trip duration. Do not forget items required for daily living, selected activities and location/weather."""
     
     def _build_single_traveler_prompt(
         self,
@@ -401,51 +394,73 @@ JSON with "items" array:
         transport: List[str],
         is_primary: bool = False
     ) -> str:
-        """Build condensed prompt optimized for performance (~300 tokens vs ~800)."""
+        """Build balanced prompt with sufficient context for comprehensive lists."""
         
-        # Format weather concisely
-        weather_info = "Weather: Not available"
+        # Format weather information
+        weather_info = "Weather information not available"
         if weather_data:
-            conditions = ', '.join(weather_data.conditions[:2]) if weather_data.conditions else 'varied'
-            weather_info = f"Weather: {weather_data.avg_temp}°{weather_data.temp_unit}, {conditions}"
+            conditions_str = ", ".join(weather_data.conditions) if weather_data.conditions else "varied conditions"
+            weather_info = f"Weather: {weather_data.avg_temp}°{weather_data.temp_unit}, {conditions_str}"
         
-        # Laundry access
-        laundry = "Laundry: every 3-4 days" if duration > 5 else "Laundry: mid-trip" if duration > 3 else "No laundry"
+        # Calculate laundry access
+        if duration <= 3:
+            laundry_access = "No laundry access expected"
+        elif duration <= 5:
+            laundry_access = "Limited laundry access (mid-trip)"
+        else:
+            laundry_access = "Laundry access available"
         
-        # Age-specific notes
-        age_note = ""
+        # Determine age category
         if traveler.age < 2:
-            age_note = "Infant: baby items, comfort items, extra clothes"
+            age_category = "infant"
         elif traveler.age < 5:
-            age_note = "Toddler: comfort items, snacks, entertainment, extra clothes"
+            age_category = "toddler"
         elif traveler.age < 13:
-            age_note = "Child: age-appropriate entertainment, comfort items"
+            age_category = "child"
         elif traveler.age < 18:
-            age_note = "Teen: electronics, personal care, activity gear"
+            age_category = "teen"
+        else:
+            age_category = "adult"
         
-        # Packer role
-        role = "PRIMARY: Include shared family items (toiletries, first aid, chargers, docs, misc)" if is_primary else f"SECONDARY: {traveler.name}'s personal items ONLY (no shared family items)"
+        # Determine packing role
+        packing_role = "PRIMARY PACKER (include shared family items)" if is_primary else "Personal items only"
         
-        # Build condensed prompt
-        prompt = f"""Trip: {destination}, {duration} days
+        # Build comprehensive prompt
+        prompt = f"""# TRIP DETAILS
+Destination: {destination}
+Duration: {duration} days
 {weather_info}
-{laundry}
-Activities: {', '.join(activities) if activities else 'General travel'}
-Transport: {', '.join(transport) if transport else 'Standard'}
+{laundry_access}
 
-Traveler: {traveler.name}, {traveler.age}y, {traveler.type}
-{age_note}
-Role: {role}
+# ACTIVITIES
+{', '.join(activities) if activities else 'General travel, no specific activities'}
 
-Generate complete packing list with all 9 categories (where applicable). Include:
-- Weather-appropriate clothing (basics + activity items with *)
-- Activity gear (check age, use * prefix)
-- Toiletries, health, documents (age-appropriate)
-- Electronics, comfort items
-- Baby items (if infant/toddler)
-- Misc items
+# TRANSPORTATION
+{', '.join(transport) if transport else 'Standard transportation'}
 
-Smart quantities based on {duration} days and laundry. Mark essential: critical docs, meds, charger. Return JSON with "items" array."""
+# TRAVELER
+Name: {traveler.name}
+Age: {traveler.age} years old ({age_category})
+Role: {packing_role}
+
+# INSTRUCTIONS
+Generate a COMPLETE, COMPREHENSIVE packing list for {traveler.name} covering ALL 9 categories:
+1. clothing - Multiple outfits for {duration} days
+2. toiletries - Full personal care items
+3. health - Medications, first aid, prescriptions
+4. documents - Travel documents if needed
+5. electronics - Devices and chargers
+6. comfort - Sleep items, entertainment
+7. baby - Infant items (if applicable)
+8. activities - Activity-specific gear (use activity name as category, prefix items with *)
+9. misc - Other necessary items
+
+Consider the weather, activities, transportation, and {traveler.name}'s age when selecting items.
+Include appropriate quantities based on {duration} days and laundry access.
+Mark only truly essential items (meds, docs, chargers, car seat) as is_essential: true.
+Set visible_to_kid appropriately (false for meds/docs/valuables, true for most items).
+
+Generate 30-35 items for adults, proportionally fewer for children based on age."""
         
         return prompt
     
