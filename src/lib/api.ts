@@ -444,6 +444,8 @@ import {
   UpdateItemRequest,
   PackingItem,
   TogglePackedResponse,
+  TripGenerationJobResponse,
+  TripGenerationJobStatus,
 } from '@/types/trip';
 
 export const tripApi = {
@@ -538,6 +540,21 @@ export const tripApi = {
    */
   removeTripMember: async (tripId: string, userId: string): Promise<void> => {
     return api.delete<void>(`/api/v1/trips/${tripId}/members/${userId}`);
+  },
+
+  /**
+   * Enqueue a trip generation job (async)
+   */
+  enqueueTripGeneration: async (data: CreateTripRequest): Promise<{ jobId: string }> => {
+    const response = await api.post<TripGenerationJobResponse>('/api/v1/trip-generation/jobs', data);
+    return { jobId: response.jobId };
+  },
+
+  /**
+   * Get trip generation job status
+   */
+  getTripGenerationJobStatus: async (jobId: string): Promise<TripGenerationJobResponse> => {
+    return api.get<TripGenerationJobResponse>(`/api/v1/trip-generation/jobs/${jobId}`);
   },
 };
 

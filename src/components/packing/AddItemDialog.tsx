@@ -7,6 +7,7 @@ import { ItemCategory } from '@/types/packing';
 import { categoryLabels } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/context/AppContext';
+import { getCategoryIcon } from '@/lib/activityIcons';
 
 interface AddItemDialogProps {
   isOpen: boolean;
@@ -196,7 +197,7 @@ export function AddItemDialog({ isOpen, onClose, onAdd, defaultCategory }: AddIt
                 <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
                   <Sparkles className="w-3 h-3 text-primary" />
                   <span className="text-secondary font-medium">
-                    {getItemEmoji(itemName)} {categoryLabels[suggestedCategory].label}
+                    {getItemEmoji(itemName)} {categoryLabels[suggestedCategory]?.label || (suggestedCategory.charAt(0).toUpperCase() + suggestedCategory.slice(1))}
                   </span>
                 </div>
               )}

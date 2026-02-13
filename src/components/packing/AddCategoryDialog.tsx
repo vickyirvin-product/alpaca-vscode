@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ItemCategory } from '@/types/packing';
 import { categoryLabels } from '@/data/mockData';
 import { cn } from '@/lib/utils';
+import { getCategoryIcon } from '@/lib/activityIcons';
 
 interface AddCategoryDialogProps {
   isOpen: boolean;
@@ -47,7 +48,12 @@ export function AddCategoryDialog({ isOpen, onClose, onAdd, existingCategories }
           ) : (
             <div className="grid grid-cols-2 gap-2">
               {availableCategories.map((category) => {
-                const { label, emoji } = categoryLabels[category];
+                // Get category label with fallback for dynamic categories
+                const categoryLabel = categoryLabels[category] || {
+                  label: category.charAt(0).toUpperCase() + category.slice(1),
+                  emoji: getCategoryIcon(category)
+                };
+                const { label, emoji } = categoryLabel;
                 return (
                   <button
                     key={category}

@@ -909,7 +909,7 @@ Return JSON with "items" array following specified format.
 
 **Library:** `openai` (Python)
 
-**Model:** `gpt-4-turbo` (faster, cheaper than GPT-4)
+**Model:** `gpt-4o-mini` (cost-effective and fast)
 
 ---
 

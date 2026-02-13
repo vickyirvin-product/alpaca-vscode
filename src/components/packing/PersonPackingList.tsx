@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { KidModeLevel, kidModeLevels, categoryLabels } from '@/data/mockData';
 import { useApp } from '@/context/AppContext';
 import { cn } from '@/lib/utils';
+import { getCategoryIcon } from '@/lib/activityIcons';
 
 // Animation for items being delegated (swoosh out)
 const swooshOutVariants = {
@@ -298,11 +299,17 @@ export function PersonPackingList({
 
   const handleCategoryAdded = async (category: ItemCategory) => {
     try {
+      // Get category label with fallback for dynamic categories
+      const categoryLabel = categoryLabels[category] || {
+        label: category.charAt(0).toUpperCase() + category.slice(1),
+        emoji: getCategoryIcon(category)
+      };
+      
       // Add a placeholder item to create the category
       await addPackingItem({
         personId,
         name: 'New item',
-        emoji: categoryLabels[category].emoji,
+        emoji: categoryLabel.emoji,
         quantity: 1,
         category,
         isEssential: false,
@@ -327,12 +334,16 @@ export function PersonPackingList({
   // Delegation handlers
   const handleDelegateCategory = (category: ItemCategory) => {
     const categoryItems = items.filter(i => i.category === category);
-    const { label } = categoryLabels[category];
+    // Get category label with fallback for dynamic categories
+    const categoryLabel = categoryLabels[category] || {
+      label: category.charAt(0).toUpperCase() + category.slice(1),
+      emoji: getCategoryIcon(category)
+    };
     
     setDelegationTarget({
       type: 'category',
       category,
-      description: `${getDisplayName()}'s ${label}`,
+      description: `${getDisplayName()}'s ${categoryLabel.label}`,
       count: categoryItems.length,
     });
     setDelegateDialogOpen(true);
@@ -363,11 +374,15 @@ export function PersonPackingList({
 
   const handleSaveCategoryToTemplate = (category: ItemCategory) => {
     const categoryItems = items.filter(i => i.category === category);
-    const { label } = categoryLabels[category];
+    // Get category label with fallback for dynamic categories
+    const categoryLabel = categoryLabels[category] || {
+      label: category.charAt(0).toUpperCase() + category.slice(1),
+      emoji: getCategoryIcon(category)
+    };
     setSaveToTemplateTarget({
       type: 'category',
       category,
-      description: label,
+      description: categoryLabel.label,
       count: categoryItems.length,
     });
     setSaveToTemplateDialogOpen(true);

@@ -3,7 +3,7 @@
 **Date:** 2026-02-11 (Updated)
 **Test Suite:** Comprehensive Packing List System Prompt Validation
 **System Under Test:** Enhanced family travel packing expert system prompt with activity improvements
-**Model:** GPT-4o via OpenAI API
+**Model:** GPT-4o-mini via OpenAI API
 
 ---
 
@@ -306,7 +306,7 @@ The new 212-line comprehensive family travel packing expert system prompt is wor
 ### Test Environment
 - **Backend Server:** Running on localhost:8000
 - **Python Version:** 3.9
-- **OpenAI Model:** gpt-4o
+- **OpenAI Model:** gpt-4o-mini
 - **Execution Mode:** Parallel (per-traveler)
 - **Test Date:** 2026-02-11
 

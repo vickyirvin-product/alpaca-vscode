@@ -15,9 +15,10 @@ from models.trip import (
     TravelerInDB,
     MigrationRequest
 )
-from services.weather_service import weather_service
-from services.llm_service import llm_service
 from services.avatar_service import avatar_service
+from services.llm_service import llm_service
+from services.weather_service import weather_service
+from services.trip_generation_service import trip_generation_service
 from routes.auth import get_current_user
 
 
@@ -32,11 +33,6 @@ async def create_trip(
     """
     Create a new trip with intelligent packing lists.
     
-    This endpoint orchestrates:
-    1. Weather data fetching from WeatherAPI.com
-    2. LLM-powered packing list generation using GPT-4
-    3. Trip storage in MongoDB
-    
     Args:
         trip_data: Trip creation data including destination, dates, travelers, activities
         current_user: Authenticated user
@@ -45,87 +41,11 @@ async def create_trip(
         Created trip with generated packing lists
     """
     try:
-        # Step 1: Fetch weather data
-        weather_data = None
-        try:
-            weather_info = await weather_service.get_forecast(
-                location=trip_data.destination,
-                start_date=trip_data.start_date,
-                end_date=trip_data.end_date
-            )
-            
-            # Convert to WeatherInfo model
-            from models.trip import WeatherInfo
-            weather_data = WeatherInfo(**weather_info)
-            
-        except Exception as e:
-            print(f"Weather fetch failed: {str(e)}")
-            # Continue without weather data - LLM will handle it
-        
-        # Step 2: Convert travelers to DB format with avatar assignment
-        travelers_db = []
-        for t in trip_data.travelers:
-            # Assign avatar if not provided
-            avatar = t.avatar
-            if not avatar:
-                traveler_dict = {
-                    "age": t.age,
-                    "gender": getattr(t, "gender", None),
-                    "type": t.type
-                }
-                avatar = avatar_service.assign_avatar(traveler_dict)
-            
-            travelers_db.append(
-                TravelerInDB(
-                    id=str(ObjectId()),
-                    name=t.name,
-                    age=t.age,
-                    type=t.type,
-                    avatar=avatar
-                )
-            )
-        
-        # Step 3: Generate packing lists using LLM
-        packing_lists = await llm_service.generate_packing_lists(
-            destination=trip_data.destination,
-            start_date=trip_data.start_date,
-            end_date=trip_data.end_date,
-            travelers=travelers_db,
-            weather_data=weather_data,
-            activities=trip_data.activities,
-            transport=trip_data.transport
-        )
-        
-        # Step 4: Create trip document
-        trip = TripInDB(
-            id=str(ObjectId()),
+        trip = await trip_generation_service.generate_trip(
             user_id=current_user.id,
-            destination=trip_data.destination,
-            start_date=trip_data.start_date,
-            end_date=trip_data.end_date,
-            activities=trip_data.activities,
-            transport=trip_data.transport,
-            travelers=travelers_db,
-            weather_data=weather_data,
-            packing_lists=packing_lists,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            trip_data=trip_data
         )
-        
-        # Step 5: Save to database
-        db = get_db()
-        trips_collection = db.trips
-        
-        trip_dict = trip.model_dump()
-        # Convert datetime objects to ISO strings for MongoDB
-        trip_dict["created_at"] = trip.created_at
-        trip_dict["updated_at"] = trip.updated_at
-        
-        await trips_collection.insert_one(trip_dict)
-        
-        # Step 6: Return response
         return TripResponse.from_db(trip)
-        
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

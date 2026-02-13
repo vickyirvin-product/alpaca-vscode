@@ -9,9 +9,10 @@ import {
 import { ItemCategory } from '@/types/packing';
 import { categoryLabels } from '@/data/mockData';
 import { cn } from '@/lib/utils';
+import { getCategoryIcon, activityIconMap } from '@/lib/activityIcons';
 
-// Category icons mapping
-const categoryIcons: Record<ItemCategory, React.ComponentType<{ className?: string }>> = {
+// Category icons mapping for base categories
+const categoryIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   clothing: Shirt,
   toiletries: Bath,
   electronics: Smartphone,
@@ -48,9 +49,33 @@ export function CategoryHeader({
   onSaveToTemplate,
   personName
 }: CategoryHeaderProps) {
-  const { label } = categoryLabels[category];
+  // Get category label with fallback for dynamic categories
+  const categoryLabel = categoryLabels[category] || {
+    label: category.charAt(0).toUpperCase() + category.slice(1),
+    emoji: getCategoryIcon(category)
+  };
+  const { label } = categoryLabel;
+  
   const allPacked = packedCount === totalCount && totalCount > 0;
-  const CategoryIcon = categoryIcons[category];
+  
+  // Resolve category icon - check base categories first, then activity keywords
+  let CategoryIcon = categoryIcons[category];
+  
+  if (!CategoryIcon) {
+    // Check if category matches any activity keywords (same logic as items)
+    const categoryLower = category.toLowerCase();
+    for (const [keyword, icon] of Object.entries(activityIconMap)) {
+      if (categoryLower.includes(keyword)) {
+        CategoryIcon = icon;
+        break;
+      }
+    }
+  }
+  
+  // Final fallback to Package icon
+  if (!CategoryIcon) {
+    CategoryIcon = Package;
+  }
 
   // Personalize category names for clothing and toiletries
   const getDisplayLabel = () => {

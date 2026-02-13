@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Menu, X, User, Map, FileText, Printer, Bookmark, Copy, Plus } from 'lucide-react';
+import { Menu, X, User, Map, FileText, Printer, Bookmark, Copy, Plus, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 import alpacaIcon from '@/assets/alpaca-icon-only.svg';
 import { TripSummaryCard } from './TripSummaryCard';
 import { PersonTabBar } from './PersonTabBar';
@@ -43,9 +44,11 @@ export function Dashboard() {
     isLoadingTrips,
     trips,
     currentTrip,
-    auth
+    auth,
+    logout
   } = useApp();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [shareOpen, setShareOpen] = useState(false);
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const [saveListTemplateOpen, setSaveListTemplateOpen] = useState(false);
@@ -246,6 +249,28 @@ export function Dashboard() {
                 <item.icon className="w-4 h-4" />
                 {item.label}
               </button>)}
+            
+            {/* Logout button - only show for authenticated users */}
+            {auth.isAuthenticated && (
+              <>
+                <div className="border-t border-border my-1" />
+                <button
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                  onClick={async () => {
+                    setMobileMenuOpen(false);
+                    await logout();
+                    toast({
+                      title: "Logged out",
+                      description: "You have been successfully logged out."
+                    });
+                    navigate('/');
+                  }}
+                >
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </button>
+              </>
+            )}
           </motion.div>
         </>}
 

@@ -5,16 +5,7 @@
 
 export type TravelerType = 'adult' | 'child' | 'infant';
 
-export type ItemCategory =
-  | 'clothing'
-  | 'toiletries'
-  | 'electronics'
-  | 'documents'
-  | 'health'
-  | 'comfort'
-  | 'activities'
-  | 'baby'
-  | 'misc';
+export type ItemCategory = string;
 
 export type WeatherCondition = 'sunny' | 'rainy' | 'cloudy' | 'snowy' | 'mixed';
 
@@ -154,6 +145,17 @@ export interface GenerateTripResponse extends Trip {}
 export interface TripListResponse {
   trips: Trip[];
   total: number;
+}
+
+export type TripGenerationJobStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
+export interface TripGenerationJobResponse {
+  jobId: string;
+  status: TripGenerationJobStatus;
+  tripId?: string | null;
+  error?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**

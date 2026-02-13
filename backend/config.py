@@ -26,6 +26,17 @@ class Settings(BaseSettings):
     weather_api_key: str
     weather_api_base_url: str = "http://api.weatherapi.com/v1"
     
+    # Weather Cache Configuration
+    weather_cache_ttl_hours: int = 6  # Cache weather data for 6 hours
+    weather_cache_max_size: int = 1000  # Maximum number of cached entries
+    
+    # Trip Generation Timeout Configuration
+    trip_generation_timeout_seconds: int = 180  # 3 minutes max
+    trip_generation_warning_threshold_seconds: int = 60  # warn after 1 minute
+    job_cleanup_interval_seconds: int = 300  # cleanup every 5 minutes
+    job_max_age_hours: int = 1  # cleanup jobs older than 1 hour
+    job_max_retries: int = 2  # maximum retry attempts for transient failures
+    
     # Google Maps API Configuration
     google_maps_api_key: str
     

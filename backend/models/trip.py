@@ -64,17 +64,7 @@ class PackingItemBase(BaseModel):
     name: str
     emoji: str = "📦"
     quantity: int = 1
-    category: Literal[
-        "clothing",
-        "toiletries",
-        "electronics",
-        "documents",
-        "health",
-        "comfort",
-        "activities",
-        "baby",
-        "misc"
-    ]
+    category: str  # Changed from Literal to str to allow activity-specific categories
     notes: Optional[str] = None
 
 
@@ -201,17 +191,7 @@ class AddItemRequest(BaseModel):
     """Request model for adding a new packing item."""
     person_id: str
     name: str
-    category: Literal[
-        "clothing",
-        "toiletries",
-        "electronics",
-        "documents",
-        "health",
-        "comfort",
-        "activities",
-        "baby",
-        "misc"
-    ]
+    category: str  # Changed from Literal to str to allow activity-specific categories
     is_essential: bool = False
     notes: Optional[str] = None
     emoji: str = "📦"
@@ -221,17 +201,7 @@ class AddItemRequest(BaseModel):
 class UpdateItemRequest(BaseModel):
     """Request model for updating a packing item."""
     name: Optional[str] = None
-    category: Optional[Literal[
-        "clothing",
-        "toiletries",
-        "electronics",
-        "documents",
-        "health",
-        "comfort",
-        "activities",
-        "baby",
-        "misc"
-    ]] = None
+    category: Optional[str] = None  # Changed from Literal to str to allow activity-specific categories
     is_packed: Optional[bool] = None
     is_essential: Optional[bool] = None
     notes: Optional[str] = None

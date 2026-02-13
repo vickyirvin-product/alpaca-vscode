@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,6 +11,7 @@ from routes.collaboration import router as collaboration_router
 from routes.maps import router as maps_router
 from routes.weather import router as weather_router
 from routes.llm import router as llm_router
+from routes.trip_generation import router as trip_generation_router, cleanup_old_jobs_task
 from config import settings
 
 
@@ -18,8 +20,18 @@ async def lifespan(app: FastAPI):
     """Manage application lifespan events."""
     # Startup
     await Database.connect_db()
+    
+    # Start background cleanup task
+    cleanup_task = asyncio.create_task(cleanup_old_jobs_task())
+    
     yield
+    
     # Shutdown
+    cleanup_task.cancel()
+    try:
+        await cleanup_task
+    except asyncio.CancelledError:
+        pass
     await Database.close_db()
 
 
@@ -59,6 +71,7 @@ app.include_router(collaboration_router)
 app.include_router(maps_router)
 app.include_router(weather_router)
 app.include_router(llm_router)
+app.include_router(trip_generation_router)
 
 
 @app.get("/healthz")

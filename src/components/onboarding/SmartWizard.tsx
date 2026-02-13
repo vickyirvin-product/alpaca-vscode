@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, MapPin, Calendar, Users, ArrowLeft, Pencil, Check, CalendarDays, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { useApp } from "@/context/AppContext";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { StructuredTripForm, StructuredTripData } from "./StructuredTripForm";
+import { TripGenerationProgress } from "./TripGenerationProgress";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { CreateTripRequest } from "@/types/trip";
@@ -28,10 +29,13 @@ export function SmartWizard() {
     startDate: string;
     endDate: string;
   } | null>(null);
-  const { createTrip, auth } = useApp();
+  const { createTrip, selectTrip, auth } = useApp();
   const navigate = useNavigate();
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [jobStatus, setJobStatus] = useState<'pending' | 'processing' | 'completed' | 'failed'>('pending');
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Check for pending trip data after authentication
   useEffect(() => {
@@ -58,6 +62,13 @@ export function SmartWizard() {
     
     setIsCreating(true);
     setError(null);
+    setJobStatus('pending');
+    setElapsedSeconds(0);
+    
+    // Start elapsed time counter for all users (guest and authenticated)
+    timerRef.current = setInterval(() => {
+      setElapsedSeconds(prev => prev + 1);
+    }, 1000);
     
     try {
       // Convert parsed info to CreateTripRequest format
@@ -83,12 +94,65 @@ export function SmartWizard() {
         travelers,
       };
       
-      await createTrip(tripData);
-      toast.success('Trip created successfully!');
-      
-      // Navigate to appropriate route based on auth status
-      // Guest users go to "/" (public), authenticated users go to "/dashboard" (protected)
-      navigate(auth.isAuthenticated ? "/dashboard" : "/");
+      // Check if user is authenticated - use async job flow for authenticated users
+      if (auth.isAuthenticated) {
+        // Set stage to processing to show the progress spinner
+        setStage("processing");
+        
+        // Import tripApi dynamically to avoid circular dependencies
+        const { tripApi } = await import('@/lib/api');
+        
+        // Enqueue the trip generation job
+        const { jobId } = await tripApi.enqueueTripGeneration(tripData);
+        setJobStatus('processing');
+        
+        // Poll for job completion
+        const pollInterval = 2000; // 2 seconds
+        const maxAttempts = 60; // 2 minutes max
+        let attempts = 0;
+        
+        const checkJobStatus = async (): Promise<void> => {
+          attempts++;
+          
+          if (attempts > maxAttempts) {
+            throw new Error('Trip generation timed out. Please try again.');
+          }
+          
+          const currentJobStatus = await tripApi.getTripGenerationJobStatus(jobId);
+          setJobStatus(currentJobStatus.status);
+          
+          if (currentJobStatus.status === 'completed') {
+            if (!currentJobStatus.tripId) {
+              throw new Error('Trip generation completed but no trip ID was returned.');
+            }
+            
+            // Load the completed trip using selectTrip
+            await selectTrip(currentJobStatus.tripId);
+            toast.success('Trip created successfully!');
+            navigate("/dashboard");
+          } else if (currentJobStatus.status === 'failed') {
+            throw new Error(currentJobStatus.error || 'Trip generation failed. Please try again.');
+          } else {
+            // Job is still pending or processing, poll again
+            await new Promise(resolve => setTimeout(resolve, pollInterval));
+            await checkJobStatus();
+          }
+        };
+        
+        await checkJobStatus();
+      } else {
+        // Guest mode: Set stage to processing to show progress page
+        setStage("processing");
+        setJobStatus('processing');
+        
+        // Guest mode: use synchronous createTrip (which handles guest trips locally)
+        await createTrip(tripData);
+        
+        // Mark as completed
+        setJobStatus('completed');
+        toast.success('Trip created successfully!');
+        navigate("/");
+      }
     } catch (err) {
       console.error('Failed to create trip:', err);
       
@@ -120,6 +184,11 @@ export function SmartWizard() {
       });
     } finally {
       setIsCreating(false);
+      // Clear the timer
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     }
   };
   
@@ -202,11 +271,11 @@ export function SmartWizard() {
   return <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="p-3">
-        <Logo size="md" />
+        <Logo size="home" />
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col items-center justify-center px-6 pb-20">
+      <main className="flex-1 flex flex-col items-center px-6 pb-20 pt-4">
         <AnimatePresence mode="wait">
           {stage === "input" && <motion.div key="input" initial={{
           opacity: 0,
@@ -219,7 +288,7 @@ export function SmartWizard() {
           y: -20
         }} className="w-full max-w-2xl space-y-2">
               {/* Tagline */}
-              <p className="text-center -mt-6 text-base font-medium text-muted-foreground">
+              <p className="text-center text-base font-medium text-muted-foreground">
                 Family packing, simplified
               </p>
 
@@ -245,24 +314,12 @@ export function SmartWizard() {
         }} exit={{
           opacity: 0,
           scale: 0.9
-        }} className="text-center space-y-6">
-              <div className="relative">
-                <motion.div animate={{
-              rotate: 360
-            }} transition={{
-              duration: 2,
-              repeat: Infinity,
-              ease: "linear"
-            }} className="w-24 h-24 mx-auto">
-                  <Sparkles className="w-24 h-24 text-primary" />
-                </motion.div>
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-2xl font-semibold text-secondary">Creating your packing list...</h2>
-                <p className="text-muted-foreground">
-                  Checking weather, calculating quantities, adding age-appropriate items
-                </p>
-              </div>
+        }} className="w-full flex justify-center">
+              <TripGenerationProgress
+                jobStatus={jobStatus}
+                elapsedSeconds={elapsedSeconds}
+                travelerCount={(parsedInfo?.adults.length || 0) + (parsedInfo?.kids.length || 0)}
+              />
             </motion.div>}
 
           {stage === "confirming" && parsedInfo && <motion.div key="confirming" initial={{

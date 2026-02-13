@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import alpacaLogo from '@/assets/alpaca-logo-stacked.svg';
 
 interface LogoProps {
-  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'home';
 }
 
 const sizeClasses = {
@@ -12,6 +12,7 @@ const sizeClasses = {
   lg: 'h-56',
   xl: 'h-72',
   '2xl': 'h-96',
+  home: 'h-24', // 96px - 60% of md (160px)
 };
 
 export function Logo({ size = 'md' }: LogoProps) {

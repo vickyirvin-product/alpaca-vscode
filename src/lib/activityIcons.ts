@@ -109,3 +109,28 @@ export function parseActivityItem(itemName: string): {
     ActivityIcon,
   };
 }
+
+/**
+ * Gets an appropriate icon for a category name.
+ * Used for dynamic activity-specific categories that aren't in the hardcoded categoryLabels.
+ */
+export const getCategoryIcon = (category: string): string => {
+  const categoryLower = category.toLowerCase();
+  
+  // Map common activity categories to icons
+  if (categoryLower.includes('ski')) return '⛷️';
+  if (categoryLower.includes('snowboard')) return '🏂';
+  if (categoryLower.includes('beach')) return '🏖️';
+  if (categoryLower.includes('swim')) return '🏊';
+  if (categoryLower.includes('hik')) return '🥾';
+  if (categoryLower.includes('camp')) return '⛺';
+  if (categoryLower.includes('bike') || categoryLower.includes('cycl')) return '🚴';
+  if (categoryLower.includes('climb')) return '🧗';
+  if (categoryLower.includes('fish')) return '🎣';
+  if (categoryLower.includes('golf')) return '⛳';
+  if (categoryLower.includes('tennis')) return '🎾';
+  if (categoryLower.includes('run')) return '🏃';
+  
+  // Default activity icon
+  return '🎯';
+};

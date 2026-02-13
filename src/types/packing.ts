@@ -46,16 +46,7 @@ export interface PackingItem {
   notes?: string;
 }
 
-export type ItemCategory = 
-  | 'clothing'
-  | 'toiletries'
-  | 'electronics'
-  | 'documents'
-  | 'health'
-  | 'comfort'
-  | 'activities'
-  | 'baby'
-  | 'misc';
+export type ItemCategory = string;
 
 export interface PackingList {
   tripId: string;
