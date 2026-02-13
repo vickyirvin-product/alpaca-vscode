@@ -262,22 +262,14 @@ export function KidModePackingView({
                   : "bg-card border-4 border-vault hover:border-vault-glow"
               )}
             >
-              {/* Item emoji and activity icon */}
-              <div className="flex items-center gap-2 mb-1">
-                <span className={cn(
-                  "transition-transform",
-                  levelStyles.cardSize,
-                  item.isPacked && "scale-90"
-                )}>
-                  {item.emoji}
-                </span>
-                {(() => {
-                  const { isActivityItem, ActivityIcon } = parseActivityItem(item.name);
-                  return isActivityItem && ActivityIcon ? (
-                    <ActivityIcon className="w-6 h-6 text-kid-primary" />
-                  ) : null;
-                })()}
-              </div>
+              {/* Item emoji */}
+              <span className={cn(
+                "transition-transform mb-1",
+                levelStyles.cardSize,
+                item.isPacked && "scale-90"
+              )}>
+                {item.emoji}
+              </span>
 
               {/* Item name - strip asterisk */}
               <p className={cn(

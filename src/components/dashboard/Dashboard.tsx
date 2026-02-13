@@ -20,6 +20,7 @@ import { useApp } from '@/context/AppContext';
 import { KidModeLevel } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 import { isGuestTripId } from '@/lib/guestStorage';
+import { generateShortTripTitle } from '@/lib/tripUtils';
 const navItems = [{
   label: 'Account',
   icon: User
@@ -179,15 +180,15 @@ export function Dashboard() {
       <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-lg border-b border-border">
         <div className="container max-w-4xl mx-auto px-3">
           {/* Top row: Logo, Trip Name, Menu */}
-          <div className="flex items-center gap-3 h-14">
-            {/* Icon-only Logo - links back to home/search */}
-            <button onClick={() => setHasCompletedOnboarding(false)} className="shrink-0 hover:opacity-80 transition-opacity flex items-center -mt-2.5">
-              <img src={alpacaIcon} alt="Alpaca" className="h-9 w-9" />
+          <div className="flex items-center gap-3 h-12">
+            {/* Smaller Icon-only Logo - links back to home/search */}
+            <button onClick={() => setHasCompletedOnboarding(false)} className="shrink-0 hover:opacity-80 transition-opacity flex items-center">
+              <img src={alpacaIcon} alt="Alpaca" className="h-6 w-6" />
             </button>
             
             {/* Trip Name - BIGGER */}
             <h1 className="font-bold text-secondary truncate flex-1 min-w-0 text-xl">
-              {trip.destination}
+              {generateShortTripTitle(trip.destination, trip.startDate)}
             </h1>
 
             {/* Hamburger Menu */}
@@ -277,15 +278,17 @@ export function Dashboard() {
       {/* Main Content */}
       <main className="container max-w-4xl mx-auto px-3 py-2 space-y-3">
         {/* Person Tab Bar with integrated overall progress */}
-        <PersonTabBar 
-          travelers={travelers} 
-          selectedPersonId={selectedPersonId} 
-          onSelectPerson={handleSelectPerson} 
-          onManage={handleManage} 
+        <PersonTabBar
+          travelers={travelers}
+          selectedPersonId={selectedPersonId}
+          onSelectPerson={handleSelectPerson}
+          onManage={handleManage}
           getPackingProgress={getPackingProgress}
           overallProgress={overallProgress}
           packedItems={packedItems}
           totalItems={totalItems}
+          currentUserId={selectedPersonId}
+          currentTripId={currentTrip?.id}
         />
 
         {/* Packing List Content */}
@@ -307,7 +310,7 @@ export function Dashboard() {
       <PrintDialog open={printDialogOpen} onOpenChange={setPrintDialogOpen} travelers={travelers} />
 
       {/* Save List as Template Dialog */}
-      <SaveListAsTemplateDialog open={saveListTemplateOpen} onOpenChange={setSaveListTemplateOpen} tripName={trip.destination} itemCount={totalItems} />
+      <SaveListAsTemplateDialog open={saveListTemplateOpen} onOpenChange={setSaveListTemplateOpen} tripName={generateShortTripTitle(trip.destination, trip.startDate)} itemCount={totalItems} />
 
     </div>;
 }

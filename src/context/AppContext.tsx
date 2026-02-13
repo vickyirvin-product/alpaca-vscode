@@ -455,15 +455,53 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const inferTransport = (destination: string, transport: string[]): string[] => {
+    // If transport is already provided and not empty, use it
+    if (transport && transport.length > 0) {
+      return transport;
+    }
+    
+    // List of US locations
+    const usLocations = [
+      "alabama", "alaska", "arizona", "arkansas", "california", "colorado",
+      "connecticut", "delaware", "florida", "georgia", "hawaii", "idaho",
+      "illinois", "indiana", "iowa", "kansas", "kentucky", "louisiana",
+      "maine", "maryland", "massachusetts", "michigan", "minnesota",
+      "mississippi", "missouri", "montana", "nebraska", "nevada",
+      "new hampshire", "new jersey", "new mexico", "new york",
+      "north carolina", "north dakota", "ohio", "oklahoma", "oregon",
+      "pennsylvania", "rhode island", "south carolina", "south dakota",
+      "tennessee", "texas", "utah", "vermont", "virginia", "washington",
+      "west virginia", "wisconsin", "wyoming", "puerto rico", "guam",
+      "us virgin islands", "american samoa", "northern mariana islands",
+      "united states", "usa", "u.s.", "u.s.a."
+    ];
+    
+    // Check if destination is in the US
+    const destinationLower = destination.toLowerCase();
+    const isUsDestination = usLocations.some(loc => destinationLower.includes(loc));
+    
+    if (isUsDestination) {
+      // US destination - set to unknown/let LLM decide
+      return ["unknown"];
+    } else {
+      // International destination - assume flying
+      return ["flying"];
+    }
+  };
+
   const createTrip = async (data: CreateTripRequest): Promise<Trip> => {
     setState(prev => ({ ...prev, isLoadingTrips: true, tripError: null }));
 
     try {
       let trip: Trip | GuestTrip;
       
+      // Infer transport if not provided
+      const inferredTransport = inferTransport(data.destination, data.transport || []);
+      
       // Check if user is authenticated
       if (state.auth.isAuthenticated) {
-        // Authenticated: create trip via API
+        // Authenticated: create trip via API (backend will also infer transport)
         trip = await tripApi.createTrip(data);
       } else {
         // Guest mode: create trip locally with real weather data
@@ -533,7 +571,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           startDate: data.startDate,
           endDate: data.endDate,
           activities: data.activities || [],
-          transport: data.transport || [],
+          transport: inferredTransport,  // Use inferred transport
           weather: weatherData,
           travelers: travelers,
         });
@@ -593,7 +631,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           duration: durationDays,
           travelers: travelers,
           activities: data.activities || [],
-          transport: data.transport || [],
+          transport: inferredTransport,  // Use inferred transport
           packingLists: packingLists,
           weatherData,
           createdAt: new Date().toISOString(),

@@ -9,11 +9,12 @@ import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { StructuredTripForm, StructuredTripData } from "./StructuredTripForm";
 import { TripGenerationProgress } from "./TripGenerationProgress";
+import { PackingTip } from "./PackingTip";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { CreateTripRequest } from "@/types/trip";
 export function SmartWizard() {
-  const [stage, setStage] = useState<"input" | "processing" | "confirming">("input");
+  const [stage, setStage] = useState<"input" | "processing">("input");
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Record<string, string>>({});
   const [parsedInfo, setParsedInfo] = useState<{
@@ -23,6 +24,7 @@ export function SmartWizard() {
     travelers: string;
     adults: { id: string; name: string; role: string }[];
     kids: {
+      name?: string;
       age: number;
     }[];
     activities: string[];
@@ -44,7 +46,6 @@ export function SmartWizard() {
       try {
         const parsedData = JSON.parse(pendingTripData);
         setParsedInfo(parsedData);
-        setStage("confirming");
         sessionStorage.removeItem('pending_trip_data');
         // Automatically trigger trip creation
         setTimeout(() => {
@@ -78,11 +79,25 @@ export function SmartWizard() {
           age: 30, // Default age for adults
           type: 'adult' as const,
         })),
-        ...tripInfo.kids.map(kid => ({
-          name: `Child (${kid.age})`,
-          age: kid.age,
-          type: kid.age < 2 ? 'infant' as const : 'child' as const,
-        })),
+        ...tripInfo.kids.map(kid => {
+          // Use child name if provided, otherwise use age-based label
+          let name: string;
+          if (kid.name && kid.name.trim()) {
+            name = kid.name;
+          } else if (kid.age === 0) {
+            name = 'Infant';
+          } else if (kid.age === 1) {
+            name = '1-yr old';
+          } else {
+            name = `${kid.age}-yr old`;
+          }
+          
+          return {
+            name,
+            age: kid.age,
+            type: kid.age < 2 ? 'infant' as const : 'child' as const,
+          };
+        }),
       ];
       
       const tripData: CreateTripRequest = {
@@ -227,7 +242,6 @@ export function SmartWizard() {
     setEditingField(null);
   };
   const handleStructuredSubmit = async (data: StructuredTripData) => {
-    setStage("processing");
     setError(null);
     
     try {
@@ -244,23 +258,28 @@ export function SmartWizard() {
         { id: '2', name: '', role: 'Dad' }
       ];
       
-      setParsedInfo({
+      const tripInfo = {
         destination: data.destinations.join(", ") || "Tokyo, Japan",
         duration: durationText,
         timeOfYear: data.dateRange?.from ? format(data.dateRange.from, "MMMM") : "March",
         travelers: `${data.adults.length} adults${kidsText}`,
         adults: adultsData,
         kids: data.kids.length > 0 ? data.kids : [{
+          name: '',
           age: 4
         }, {
+          name: '',
           age: 7
         }],
         activities: data.activities,
         startDate: data.dateRange?.from ? format(data.dateRange.from, "yyyy-MM-dd") : "2025-03-28",
         endDate: data.dateRange?.to ? format(data.dateRange.to, "yyyy-MM-dd") : "2025-04-18"
-      });
+      };
       
-      setStage("confirming");
+      setParsedInfo(tripInfo);
+      
+      // Skip confirming stage and go directly to trip creation
+      await completeTripCreation(tripInfo);
     } catch (err) {
       console.error('Failed to process trip data:', err);
       setError(err instanceof Error ? err.message : 'Failed to process trip data');
@@ -319,203 +338,11 @@ export function SmartWizard() {
                 jobStatus={jobStatus}
                 elapsedSeconds={elapsedSeconds}
                 travelerCount={(parsedInfo?.adults.length || 0) + (parsedInfo?.kids.length || 0)}
+                destination={parsedInfo?.destination}
+                startDate={parsedInfo?.startDate}
+                endDate={parsedInfo?.endDate}
+                activities={parsedInfo?.activities}
               />
-            </motion.div>}
-
-          {stage === "confirming" && parsedInfo && <motion.div key="confirming" initial={{
-          opacity: 0,
-          y: 20
-        }} animate={{
-          opacity: 1,
-          y: 0
-        }} exit={{
-          opacity: 0,
-          y: -20
-        }} className="w-full max-w-2xl space-y-6">
-              {/* Weather Speech Bubble - Fetch and display weather immediately */}
-              <WeatherPreview
-                destination={parsedInfo.destination}
-                startDate={parsedInfo.startDate}
-                endDate={parsedInfo.endDate}
-              />
-
-              {/* Duplicate Action Buttons */}
-              <div className="space-y-3">
-                {error && (
-                  <div className="bg-destructive/10 text-destructive p-3 rounded-lg text-sm">
-                    {error}
-                  </div>
-                )}
-                <Button
-                  onClick={handleConfirm}
-                  size="lg"
-                  className="w-full rounded-xl h-14 text-lg font-semibold"
-                  disabled={isCreating}
-                >
-                  {isCreating ? 'Creating Trip...' : 'View My Packing List'}
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={handleRestart}
-                  className="w-full text-muted-foreground hover:text-foreground"
-                  disabled={isCreating}
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Start Over
-                </Button>
-              </div>
-
-              {/* Confirmation Card */}
-              <div className="bg-card rounded-3xl p-8 card-shadow-lg border border-border">
-                <div className="flex items-start gap-4 mb-6">
-                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-                    <Sparkles className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-semibold text-secondary">Trip Summary</h2>
-                    <p className="text-muted-foreground mt-1">Click any field to edit it</p>
-                  </div>
-                </div>
-
-                <div className="space-y-3 mb-6">
-                  {/* Destination */}
-                  <EditableField icon={<MapPin className="w-5 h-5 text-primary" />} label="Destination" value={parsedInfo.destination} isEditing={editingField === 'destination'} editValue={editValues['destination'] || parsedInfo.destination} onEdit={() => handleEditField('destination', parsedInfo.destination)} onSave={() => handleSaveField('destination')} onChange={v => setEditValues({
-                ...editValues,
-                destination: v
-              })} />
-
-                  {/* Dates */}
-                  <div className="flex items-center gap-3 p-4 bg-muted rounded-xl group">
-                    <CalendarDays className="w-5 h-5 text-primary" />
-                    <div className="flex-1">
-                      <p className="text-sm text-muted-foreground">Dates</p>
-                      {editingField === 'dates' ? <div className="flex gap-2 items-center mt-1">
-                          <Input value={editValues['startDate'] || parsedInfo.startDate} onChange={e => setEditValues({
-                      ...editValues,
-                      startDate: e.target.value
-                    })} className="h-8 text-sm" placeholder="Start date" />
-                          <span className="text-muted-foreground">to</span>
-                          <Input value={editValues['endDate'] || parsedInfo.endDate} onChange={e => setEditValues({
-                      ...editValues,
-                      endDate: e.target.value
-                    })} className="h-8 text-sm" placeholder="End date" />
-                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => {
-                      if (parsedInfo) {
-                        setParsedInfo({
-                          ...parsedInfo,
-                          startDate: editValues['startDate'] || parsedInfo.startDate,
-                          endDate: editValues['endDate'] || parsedInfo.endDate
-                        });
-                      }
-                      setEditingField(null);
-                    }}>
-                            <Check className="h-4 w-4" />
-                          </Button>
-                        </div> : <div className="flex items-center gap-2">
-                          <p className="font-medium text-secondary">{parsedInfo.startDate} → {parsedInfo.endDate}</p>
-                          <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => {
-                      setEditingField('dates');
-                      setEditValues({
-                        ...editValues,
-                        startDate: parsedInfo.startDate,
-                        endDate: parsedInfo.endDate
-                      });
-                    }}>
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                        </div>}
-                    </div>
-                  </div>
-
-                  {/* Duration */}
-                  <EditableField icon={<Calendar className="w-5 h-5 text-primary" />} label="Duration" value={parsedInfo.duration} isEditing={editingField === 'duration'} editValue={editValues['duration'] || parsedInfo.duration} onEdit={() => handleEditField('duration', parsedInfo.duration)} onSave={() => handleSaveField('duration')} onChange={v => setEditValues({
-                ...editValues,
-                duration: v
-              })} />
-
-                  {/* Time of Year */}
-                  <EditableField icon={<CalendarDays className="w-5 h-5 text-primary" />} label="Time of Year" value={parsedInfo.timeOfYear} isEditing={editingField === 'timeOfYear'} editValue={editValues['timeOfYear'] || parsedInfo.timeOfYear} onEdit={() => handleEditField('timeOfYear', parsedInfo.timeOfYear)} onSave={() => handleSaveField('timeOfYear')} onChange={v => setEditValues({
-                ...editValues,
-                timeOfYear: v
-              })} />
-
-                  {/* Travelers - Adults */}
-                  <div className="flex items-start gap-3 p-4 bg-muted rounded-xl">
-                    <Users className="w-5 h-5 text-primary mt-0.5" />
-                    <div className="flex-1">
-                      <p className="text-sm text-muted-foreground mb-2">Adults</p>
-                      <div className="space-y-2">
-                        {parsedInfo.adults.map((adult, idx) => {
-                          // Count how many adults have the same role up to this point
-                          const sameRoleAdults = parsedInfo.adults.filter((a, i) => a.role === adult.role && i <= idx);
-                          const roleCount = sameRoleAdults.length;
-                          const displayName = adult.name || `${adult.role}${parsedInfo.adults.filter(a => a.role === adult.role).length > 1 ? ` ${roleCount}` : ''}`;
-                          
-                          return (
-                            <div key={adult.id} className="flex items-center gap-2">
-                              <Badge variant="secondary" className="px-3 py-1.5 text-sm">
-                                {displayName}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">({adult.role})</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Kids */}
-                  {parsedInfo.kids.length > 0 && <div className="flex items-start gap-3 p-4 bg-muted rounded-xl">
-                      <Users className="w-5 h-5 text-primary mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm text-muted-foreground mb-2">Kids</p>
-                        <div className="flex flex-wrap gap-2">
-                          {parsedInfo.kids.map((kid, idx) => <Badge key={idx} variant="secondary" className="px-3 py-1.5 text-sm">
-                              👶 Age {kid.age}
-                            </Badge>)}
-                        </div>
-                      </div>
-                    </div>}
-
-                  {/* Activities */}
-                  {parsedInfo.activities.length > 0 && <div className="flex items-start gap-3 p-4 bg-muted rounded-xl">
-                      <Activity className="w-5 h-5 text-primary mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm text-muted-foreground mb-2">Activities</p>
-                        <div className="flex flex-wrap gap-2">
-                          {parsedInfo.activities.map(activity => <Badge key={activity} className="px-3 py-1.5">
-                              {activity}
-                            </Badge>)}
-                        </div>
-                      </div>
-                    </div>}
-                </div>
-
-                <div className="space-y-3">
-                  {error && (
-                    <div className="bg-destructive/10 text-destructive p-3 rounded-lg text-sm">
-                      {error}
-                    </div>
-                  )}
-                  <Button
-                    onClick={handleConfirm}
-                    size="lg"
-                    className="w-full rounded-xl h-14 text-lg font-semibold"
-                    disabled={isCreating}
-                  >
-                    {isCreating ? 'Creating Trip...' : 'View My Packing List'}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={handleRestart}
-                    className="w-full text-muted-foreground hover:text-foreground"
-                    disabled={isCreating}
-                  >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Start Over
-                  </Button>
-                </div>
-              </div>
             </motion.div>}
         </AnimatePresence>
       </main>
@@ -585,15 +412,43 @@ function WeatherPreview({ destination, startDate, endDate }: { destination: stri
                       weather.conditions.includes('snowy') ? '❄️' :
                       weather.conditions.includes('cloudy') ? '☁️' : '🌤️';
 
+  // Helper function to get temperature description
+  const getTempDescription = (temp: number): string => {
+    if (temp < 40) return "very cold";
+    if (temp < 55) return "cold";
+    if (temp < 65) return "cool";
+    if (temp < 80) return "warm";
+    return "hot";
+  };
+
+  // Helper function to get weather condition description
+  const getConditionDescription = (conditions: string[]): string => {
+    if (conditions.includes('rainy')) return "rainy";
+    if (conditions.includes('snowy')) return "snowing";
+    if (conditions.includes('sunny')) return "dry";
+    if (conditions.includes('cloudy')) return "cloudy";
+    return "dry";
+  };
+
+  const tempDesc = getTempDescription(weather.avgTemp);
+  const conditionDesc = getConditionDescription(weather.conditions);
+  const lowTemp = Math.round(weather.avgTemp - 5);
+  const highTemp = Math.round(weather.avgTemp + 5);
+  
+  const conversationalWeather = `It's going to be ${tempDesc} and ${conditionDesc}! Expect lows of ${lowTemp}°${weather.tempUnit} and highs of ${highTemp}°${weather.tempUnit}.`;
+
   return (
     <div className="bg-gradient-to-br from-primary/20 via-primary/10 to-accent/30 rounded-2xl p-5 border-2 border-primary/30 shadow-lg">
       <div className="flex items-start gap-3">
         <span className="text-3xl">{weatherEmoji}</span>
         <div>
           <p className="text-lg font-semibold text-primary mb-1">
-            {weather.avgTemp}°{weather.tempUnit} - {weather.conditions.join(', ')}
+            Weather Forecast
           </p>
-          <p className="text-muted-foreground">
+          <p className="text-foreground mb-1">
+            {conversationalWeather}
+          </p>
+          <p className="text-sm text-muted-foreground">
             {weather.recommendation}
           </p>
         </div>

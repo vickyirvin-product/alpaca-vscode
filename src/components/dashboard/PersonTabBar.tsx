@@ -17,6 +17,7 @@ interface PersonTabBarProps {
     total: number;
   };
   currentUserId?: string;
+  currentTripId?: string;
   overallProgress?: number;
   packedItems?: number;
   totalItems?: number;
@@ -28,6 +29,7 @@ export function PersonTabBar({
   onSelectPerson,
   getPackingProgress,
   currentUserId = 'mom',
+  currentTripId,
   overallProgress = 0,
   packedItems = 0,
   totalItems = 0
@@ -143,6 +145,7 @@ export function PersonTabBar({
         onOpenChange={setNudgeDialogOpen}
         travelers={travelersWithProgress}
         currentUserId={currentUserId}
+        currentTripId={currentTripId}
         getDisplayName={getDisplayName}
       />
     </div>

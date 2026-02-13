@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { DateRange } from "react-day-picker";
 import { LocationAutocomplete } from "@/components/ui/location-autocomplete";
 
-const activityTags = ["Walking", "Sightseeing", "Hiking", "Staying with family", "Skiing/Snowboarding", "Camping", "Beach"];
+const activityTags = ["Walking/Hiking", "Sightseeing", "Staying with family", "Skiing/Snowboarding", "Camping", "Beach", "Pool", "Theme Park", "Nice Restaurants/Event"];
 const transportOptions = [
   { id: "flying", label: "Flying", icon: Plane },
   { id: "driving", label: "Driving", icon: Car },
@@ -33,7 +33,7 @@ interface StructuredTripFormProps {
 }
 
 export function StructuredTripForm({ initialData, onSubmit }: StructuredTripFormProps) {
-  const [expandedSection, setExpandedSection] = useState<"where" | "when" | "who" | "activities" | "transport" | null>("where");
+  const [expandedSection, setExpandedSection] = useState<"where" | "when" | "who" | "activities" | null>("where");
   const [destinations, setDestinations] = useState<string[]>(initialData?.destinations || []);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(initialData?.dateRange);
   const [adultsData, setAdultsData] = useState<{ id: string; name: string; role: string }[]>(initialData?.adults || []);
@@ -44,6 +44,8 @@ export function StructuredTripForm({ initialData, onSubmit }: StructuredTripForm
   const [customActivities, setCustomActivities] = useState<string[]>([]);
   const [customTransportInput, setCustomTransportInput] = useState("");
   const [customTransport, setCustomTransport] = useState<string[]>([]);
+  const [showKidNameInputs, setShowKidNameInputs] = useState<boolean[]>([]);
+  const [kidAgeErrors, setKidAgeErrors] = useState<boolean[]>([]);
 
   // Sync with initialData when it changes
   useEffect(() => {
@@ -79,11 +81,15 @@ export function StructuredTripForm({ initialData, onSubmit }: StructuredTripForm
 
   const addKid = () => {
     setKids([...kids, { name: '', age: -1 }]); // -1 indicates "select age" placeholder
+    setShowKidNameInputs([...showKidNameInputs, false]);
+    setKidAgeErrors([...kidAgeErrors, false]);
   };
 
   const removeKid = () => {
     if (kids.length > 0) {
       setKids(kids.slice(0, -1));
+      setShowKidNameInputs(showKidNameInputs.slice(0, -1));
+      setKidAgeErrors(kidAgeErrors.slice(0, -1));
     }
   };
 
@@ -97,6 +103,13 @@ export function StructuredTripForm({ initialData, onSubmit }: StructuredTripForm
     const newKids = [...kids];
     newKids[index] = { ...newKids[index], age };
     setKids(newKids);
+    
+    // Clear error when age is selected
+    if (age >= 0) {
+      const newErrors = [...kidAgeErrors];
+      newErrors[index] = false;
+      setKidAgeErrors(newErrors);
+    }
   };
 
   const toggleActivity = (activity: string) => {
@@ -181,14 +194,22 @@ export function StructuredTripForm({ initialData, onSubmit }: StructuredTripForm
     });
   };
 
-  const canSubmit = destinations.length > 0 && dateRange?.from && (adultsData.length > 0 || kids.length > 0) && (selectedActivities.length > 0 || customActivities.length > 0);
+  const validateKidAges = () => {
+    const errors = kids.map(kid => kid.age < 0);
+    setKidAgeErrors(errors);
+    return !errors.some(e => e);
+  };
+
+  const canSubmit = destinations.length > 0 &&
+    dateRange?.from &&
+    (adultsData.length > 0 || kids.length > 0) &&
+    (selectedActivities.length > 0 || customActivities.length > 0) &&
+    kids.every(kid => kid.age >= 0);
 
   const getDurationText = () => {
     if (!dateRange?.from || !dateRange?.to) return "";
     const days = differenceInDays(dateRange.to, dateRange.from);
-    if (days < 7) return `${days} days`;
-    const weeks = Math.round(days / 7);
-    return weeks === 1 ? "1 week" : `${weeks} weeks`;
+    return `${days} ${days === 1 ? 'day' : 'days'}`;
   };
 
   return (
@@ -331,7 +352,7 @@ export function StructuredTripForm({ initialData, onSubmit }: StructuredTripForm
             >
               <div className="px-4 pb-4 space-y-4">
                 {/* Adults */}
-                <div className="flex items-center justify-between py-3 border-b border-border">
+                <div className="flex items-center justify-between py-3">
                   <div>
                     <p className="font-medium text-secondary">Adults</p>
                   </div>
@@ -357,41 +378,33 @@ export function StructuredTripForm({ initialData, onSubmit }: StructuredTripForm
                   </div>
                 </div>
 
-                {/* Adults names & roles */}
+                {/* Adults roles only */}
                 {adultsData.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">Adults' names & roles</p>
-                    <div className="space-y-3">
-                      {adultsData.map((adult, index) => (
-                        <div key={adult.id} className="flex items-center gap-2">
-                          <Input
-                            value={adult.name}
-                            onChange={(e) => updateAdultName(adult.id, e.target.value)}
-                            placeholder={index === 0 ? "Your name" : "Adult name"}
-                            className="flex-1 h-10 rounded-xl"
-                          />
-                          <select
-                            value={adult.role}
-                            onChange={(e) => updateAdultRole(adult.id, e.target.value)}
-                            className="rounded-xl border border-border bg-background px-4 py-2 text-sm h-10 min-w-[120px]"
-                          >
-                            <option value="Mom">Mom</option>
-                            <option value="Dad">Dad</option>
-                            <option value="Grandma">Grandma</option>
-                            <option value="Grandpa">Grandpa</option>
-                            <option value="Other">Other</option>
-                          </select>
-                        </div>
-                      ))}
-                    </div>
+                  <div className="flex flex-wrap gap-3">
+                    {adultsData.map((adult, index) => (
+                      <select
+                        key={adult.id}
+                        value={adult.role}
+                        onChange={(e) => updateAdultRole(adult.id, e.target.value)}
+                        className="rounded-xl border border-border bg-background px-4 py-2 text-base h-10 min-w-[120px]"
+                      >
+                        <option value="Mom">Mom</option>
+                        <option value="Dad">Dad</option>
+                        <option value="Grandma">Grandma</option>
+                        <option value="Grandpa">Grandpa</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    ))}
                   </div>
                 )}
 
+                {/* Separator between Adults and Kids */}
+                <div className="border-t border-border my-2"></div>
+
                 {/* Kids */}
-                <div className="flex items-center justify-between py-3 border-b border-border">
+                <div className="flex items-center justify-between py-3">
                   <div>
                     <p className="font-medium text-secondary">Kids</p>
-                    <p className="text-sm text-muted-foreground">Ages 0-17</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <Button
@@ -415,35 +428,53 @@ export function StructuredTripForm({ initialData, onSubmit }: StructuredTripForm
                   </div>
                 </div>
 
-                {/* Kids names & ages */}
+                {/* Kids ages */}
                 {kids.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">Kids' names & ages</p>
-                    <div className="flex flex-wrap gap-x-4 gap-y-3">
-                      {kids.map((kid, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                          {index > 0 && (
-                            <div className="h-6 w-px bg-border mr-2 hidden sm:block" />
+                  <div className="space-y-3">
+                    {kids.map((kid, index) => (
+                      <div key={index} className="space-y-2">
+                        <div className="flex items-start gap-2">
+                          <div className="flex-shrink-0">
+                            <select
+                              value={kid.age}
+                              onChange={(e) => updateKidAge(index, parseInt(e.target.value))}
+                              className={cn(
+                                "rounded-lg border bg-background px-3 py-1.5 text-base h-10 w-[140px]",
+                                kidAgeErrors[index] ? "border-destructive" : "border-border"
+                              )}
+                            >
+                              <option value={-1}>Select age</option>
+                              <option value={0}>Infant</option>
+                              {Array.from({ length: 17 }, (_, i) => (
+                                <option key={i + 1} value={i + 1}>{i + 1} {i + 1 === 1 ? "year" : "years"}</option>
+                              ))}
+                            </select>
+                            {kidAgeErrors[index] && (
+                              <p className="text-xs text-destructive mt-1">Age is required</p>
+                            )}
+                          </div>
+                          {!showKidNameInputs[index] ? (
+                            <button
+                              onClick={() => {
+                                const newShowInputs = [...showKidNameInputs];
+                                newShowInputs[index] = true;
+                                setShowKidNameInputs(newShowInputs);
+                              }}
+                              className="text-xs text-primary underline hover:text-primary/80 mt-2.5"
+                            >
+                              Add name
+                            </button>
+                          ) : (
+                            <Input
+                              value={kid.name}
+                              onChange={(e) => updateKidName(index, e.target.value)}
+                              placeholder="First name"
+                              className="flex-1 h-10 text-base rounded-lg"
+                            />
                           )}
-                          <Input
-                            value={kid.name}
-                            onChange={(e) => updateKidName(index, e.target.value)}
-                            placeholder="First name"
-                            className="w-24 h-8 text-sm rounded-lg"
-                          />
-                          <select
-                            value={kid.age}
-                            onChange={(e) => updateKidAge(index, parseInt(e.target.value))}
-                            className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm h-8"
-                          >
-                            <option value={-1}>Select age</option>
-                            {Array.from({ length: 18 }, (_, i) => (
-                              <option key={i} value={i}>{i} {i === 1 ? "year" : "years"}</option>
-                            ))}
-                          </select>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -541,98 +572,6 @@ export function StructuredTripForm({ initialData, onSubmit }: StructuredTripForm
         </AnimatePresence>
       </motion.div>
 
-      {/* Transport Section */}
-      <motion.div
-        className={cn(
-          "bg-card rounded-2xl border border-border overflow-hidden transition-shadow",
-          expandedSection === "transport" ? "card-shadow-lg" : "card-shadow"
-        )}
-      >
-        <button
-          onClick={() => setExpandedSection(expandedSection === "transport" ? null : "transport")}
-          className="w-full p-4 text-left flex items-center justify-between"
-        >
-          <span className="text-muted-foreground">Getting there</span>
-          {expandedSection !== "transport" && (selectedTransport.length > 0 || customTransport.length > 0) && (
-            <span className="text-sm font-medium text-foreground">
-              {selectedTransport.length + customTransport.length} selected
-            </span>
-          )}
-        </button>
-        
-        <AnimatePresence>
-          {expandedSection === "transport" && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
-            >
-              <div className="px-4 pb-4 space-y-4">
-                <p className="text-sm text-muted-foreground">Select all that apply</p>
-                
-                <div className="flex flex-wrap gap-2">
-                  {transportOptions.map(option => {
-                    const Icon = option.icon;
-                    return (
-                      <button
-                        key={option.id}
-                        onClick={() => toggleTransport(option.id)}
-                        className={cn(
-                          "flex items-center gap-2 px-4 py-2 rounded-full text-sm transition-colors",
-                          selectedTransport.includes(option.id)
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-accent text-accent-foreground hover:bg-accent/80"
-                        )}
-                      >
-                        <Icon className="h-4 w-4" />
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                  {customTransport.map(transport => (
-                    <button
-                      key={transport}
-                      onClick={() => removeCustomTransport(transport)}
-                      className="flex items-center gap-2 px-4 py-2 rounded-full text-sm transition-colors bg-primary text-primary-foreground"
-                    >
-                      {transport}
-                      <X className="h-3 w-3" />
-                    </button>
-                  ))}
-                </div>
-                
-                {/* Add custom transport */}
-                <div className="flex gap-2">
-                  <Input
-                    value={customTransportInput}
-                    onChange={(e) => setCustomTransportInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && customTransportInput.trim()) {
-                        addCustomTransport(customTransportInput.trim());
-                      }
-                    }}
-                    placeholder="Add another way..."
-                    className="rounded-xl flex-1"
-                  />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      if (customTransportInput.trim()) {
-                        addCustomTransport(customTransportInput.trim());
-                      }
-                    }}
-                    className="rounded-full"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
 
       {/* Fixed bottom action buttons - always visible outside white boxes */}
       <div className="flex items-center justify-between pt-6 pb-4">
@@ -653,16 +592,17 @@ export function StructuredTripForm({ initialData, onSubmit }: StructuredTripForm
           Clear all
         </button>
         
-        {canSubmit ? (
-          <Button
-            onClick={handleSubmit}
-            className="rounded-full px-8 bg-primary hover:bg-primary/90 text-primary-foreground"
-          >
-            Generate Packing List
-          </Button>
-        ) : (
-          <Button
-            onClick={() => {
+        <Button
+          onClick={() => {
+            if (canSubmit) {
+              handleSubmit();
+            } else {
+              // Validate and show errors
+              if (!validateKidAges()) {
+                setExpandedSection("who");
+                return;
+              }
+              
               // Navigate to next incomplete section
               if (destinations.length === 0) {
                 setExpandedSection("where");
@@ -672,16 +612,19 @@ export function StructuredTripForm({ initialData, onSubmit }: StructuredTripForm
                 setExpandedSection("who");
               } else if (selectedActivities.length === 0 && customActivities.length === 0) {
                 setExpandedSection("activities");
-              } else {
-                setExpandedSection("transport");
               }
-            }}
-            disabled={expandedSection === null}
-            className="rounded-full px-8 bg-foreground text-background hover:bg-foreground/90"
-          >
-            Next
-          </Button>
-        )}
+            }
+          }}
+          disabled={!canSubmit}
+          className={cn(
+            "rounded-full px-8",
+            canSubmit
+              ? "bg-primary hover:bg-primary/90 text-primary-foreground"
+              : "bg-muted text-muted-foreground cursor-not-allowed"
+          )}
+        >
+          Generate Packing List
+        </Button>
       </div>
     </div>
   );

@@ -269,11 +269,14 @@ class LLMService:
         items = []
         categories_set = set()
         
-        # Valid base categories - activity-specific categories are also allowed
+        # Valid base categories
         VALID_CATEGORIES = {
             "clothing", "toiletries", "electronics", "documents",
-            "health", "comfort", "activities", "baby", "misc"
+            "health", "comfort", "baby", "misc"
         }
+        
+        # Create set of valid activity-specific categories (lowercase)
+        valid_activity_categories = {activity.lower() for activity in activities}
         
         for item_data in packing_data.get("items", []):
             # Get and validate category
@@ -281,10 +284,10 @@ class LLMService:
             
             # DEBUG: Log what category the LLM generated for activity items
             item_name = item_data.get("name", "Unknown Item")
-            if "*" in item_name or any(keyword in item_name.lower() for keyword in ["ski", "snowboard", "helmet", "goggles"]):
+            if "*" in item_name:
                 print(f"🔍 DEBUG - Activity item '{item_name}' has category: '{raw_category}'")
             
-            category = self._map_to_valid_category(raw_category, VALID_CATEGORIES)
+            category = self._map_to_valid_category(raw_category, VALID_CATEGORIES, valid_activity_categories)
             
             # Validate and parse quantity
             raw_quantity = item_data.get("quantity", 1)
@@ -354,7 +357,14 @@ For each planned activity, think through: What does this person need to fully pa
 
 # WHAT WE DEFINE
 
-**Categories:** Use these base categories: clothing, toiletries, health, documents, electronics, comfort, baby (if infant/toddler), misc. For major activities, create a dedicated lowercase category whose name exactly matches the activity name as provided in the trip data (e.g., if the activity is "Skiing/Snowboarding", the category must be "skiing/snowboarding", not "skiing"). Activity-specific equipment goes in the activity category. Activity-specific clothing goes in "clothing".
+**Categories:** Use these base categories: clothing, toiletries, health, documents, electronics, comfort, baby (if infant/toddler), misc.
+
+**CRITICAL - Activity-Specific Categories:** For EACH planned activity listed in the trip details, you MUST create a dedicated category whose name EXACTLY matches the activity name as provided (preserving case and punctuation). For example:
+- If activity is "Skiing/Snowboarding" → category MUST be "skiing/snowboarding" (lowercase)
+- If activity is "Beach" → category MUST be "beach" (lowercase)
+- If activity is "Hiking" → category MUST be "hiking" (lowercase)
+
+Activity-specific equipment items (prefixed with *) MUST go in the activity-specific category, NOT in a generic "activities" category. Activity-specific clothing goes in "clothing". Every traveler who can participate in the activity should have the same activity items (unless age-inappropriate, e.g., no ski gear for infants).
 
 **Quantities:** Base on trip duration. 1-3 nights: 1 per day + 1 spare. 4-7 nights: rotating sets. 8+ nights: cap at 7-10 items, assume laundry. Children under 4: add 1-2 extra outfits per day.
 
@@ -373,7 +383,7 @@ Return ONLY a JSON object:
       "name": "Item name (* prefix for activity items)",
       "emoji": "relevant emoji",
       "quantity": 1,
-      "category": "lowercase category name",
+      "category": "lowercase category name (use exact activity name for activity items)",
       "is_essential": false,
       "visible_to_kid": true,
       "notes": "Optional brief tip"
@@ -425,6 +435,12 @@ Be comprehensive but realistic. Every item should be justified by this traveler'
         # Determine packing role
         packing_role = "PRIMARY PACKER (include shared family items)" if is_primary else "Personal items only"
         
+        # Build activity-specific category list
+        activity_categories = []
+        if activities:
+            activity_categories = [f"{i+1}. {activity.lower()} - Activity-specific gear (prefix items with *)"
+                                  for i, activity in enumerate(activities, start=8)]
+        
         # Build comprehensive prompt
         prompt = f"""# TRIP DETAILS
 Destination: {destination}
@@ -444,16 +460,25 @@ Age: {traveler.age} years old ({age_category})
 Role: {packing_role}
 
 # INSTRUCTIONS
-Generate a COMPLETE, COMPREHENSIVE packing list for {traveler.name} covering ALL 9 categories:
+Generate a COMPLETE, COMPREHENSIVE packing list for {traveler.name} covering these categories:
+
+BASE CATEGORIES (always include):
 1. clothing - Multiple outfits for {duration} days
 2. toiletries - Full personal care items
 3. health - Medications, first aid, prescriptions
 4. documents - Travel documents if needed
 5. electronics - Devices and chargers
 6. comfort - Sleep items, entertainment
-7. baby - Infant items (if applicable)
-8. activities - Activity-specific gear (use activity name as category, prefix items with *)
-9. misc - Other necessary items
+7. baby - Infant items (if applicable, age < 2)
+8. misc - Other necessary items
+
+ACTIVITY-SPECIFIC CATEGORIES (create one for EACH activity listed above):
+{chr(10).join(activity_categories) if activity_categories else 'None - no specific activities planned'}
+
+CRITICAL: For activity items, use the EXACT activity name as the category (lowercase). For example:
+- If activity is "Skiing/Snowboarding", use category "skiing/snowboarding"
+- If activity is "Beach", use category "beach"
+- All travelers who can participate should get the same activity items (unless age-inappropriate)
 
 Consider the weather, activities, transportation, and {traveler.name}'s age when selecting items.
 Include appropriate quantities based on {duration} days and laundry access.
@@ -628,45 +653,37 @@ Return JSON as specified."""
         
         return packing_lists
     
-    def _map_to_valid_category(self, raw_category: str, valid_categories: set) -> str:
+    def _map_to_valid_category(self, raw_category: str, valid_base_categories: set, valid_activity_categories: set) -> str:
         """
         Map potentially invalid category names to valid ones.
-        Allows activity-specific categories (e.g., "skiing", "beach", "camping") to pass through.
+        Allows activity-specific categories that match the trip's activities to pass through.
         
         Args:
             raw_category: Category name from LLM (may be invalid)
-            valid_categories: Set of valid base category names
+            valid_base_categories: Set of valid base category names
+            valid_activity_categories: Set of valid activity-specific categories (lowercase)
         
         Returns:
             Valid category name (base category or activity-specific)
         """
         # If already a valid base category, return as-is
-        if raw_category in valid_categories:
+        if raw_category in valid_base_categories:
             return raw_category
         
-        # Check if it's an activity-specific category (allow these to pass through)
-        activity_keywords = ["skiing", "snowboarding", "hiking", "beach", "camping",
-                           "biking", "surfing", "swimming", "climbing", "fishing",
-                           "kayaking", "rafting", "snorkeling", "diving"]
-        
-        # If the category matches an activity keyword, preserve it
-        if raw_category in activity_keywords:
-            print(f"✅ Preserving activity-specific category: '{raw_category}'")
-            return raw_category
-        
-        # Check for activity-related patterns (e.g., "skiing gear", "beach supplies")
-        if any(keyword in raw_category.lower() for keyword in activity_keywords):
+        # If it matches one of the trip's activities (exact match), preserve it
+        if raw_category in valid_activity_categories:
             print(f"✅ Preserving activity-specific category: '{raw_category}'")
             return raw_category
         
         # Map common invalid categories to valid base ones
         category_mapping = {
             # Generic activity mappings (only for non-specific activities)
-            "sports": "activities",
-            "outdoor": "activities",
-            "recreation": "activities",
-            "entertainment": "activities",
-            "water sports": "activities",
+            "activities": "misc",  # Discourage generic "activities" category
+            "sports": "misc",
+            "outdoor": "misc",
+            "recreation": "misc",
+            "entertainment": "comfort",
+            "water sports": "misc",
             
             # Other potential mappings
             "clothes": "clothing",
@@ -683,6 +700,12 @@ Return JSON as specified."""
         if raw_category in category_mapping:
             print(f"⚠️  Mapped invalid category '{raw_category}' → '{category_mapping[raw_category]}'")
             return category_mapping[raw_category]
+        
+        # Check if it's a partial match or variation of an activity
+        for activity_cat in valid_activity_categories:
+            if activity_cat in raw_category or raw_category in activity_cat:
+                print(f"✅ Matched '{raw_category}' to activity category '{activity_cat}'")
+                return activity_cat
         
         # Default to misc for unknown categories
         print(f"⚠️  Unknown category '{raw_category}' → 'misc'")

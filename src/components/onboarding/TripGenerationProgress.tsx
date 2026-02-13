@@ -4,11 +4,12 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  Sparkles, 
-  Cloud, 
-  Package, 
-  CheckCircle2, 
+import { PackingTip } from "./PackingTip";
+import {
+  Sparkles,
+  Cloud,
+  Package,
+  CheckCircle2,
   Loader2,
   Clock
 } from "lucide-react";
@@ -17,6 +18,10 @@ interface TripGenerationProgressProps {
   jobStatus: 'pending' | 'processing' | 'completed' | 'failed';
   elapsedSeconds: number;
   travelerCount: number;
+  destination?: string;
+  startDate?: string;
+  endDate?: string;
+  activities?: string[];
 }
 
 interface GenerationPhase {
@@ -53,13 +58,22 @@ const phases: GenerationPhase[] = [
   }
 ];
 
-export function TripGenerationProgress({ 
-  jobStatus, 
-  elapsedSeconds, 
-  travelerCount 
+export function TripGenerationProgress({
+  jobStatus,
+  elapsedSeconds,
+  travelerCount,
+  destination,
+  startDate,
+  endDate,
+  activities = []
 }: TripGenerationProgressProps) {
   const [currentPhaseIndex, setCurrentPhaseIndex] = useState(0);
   const [showSlowMessage, setShowSlowMessage] = useState(false);
+
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   // Determine current phase based on elapsed time and status
   useEffect(() => {
@@ -101,6 +115,23 @@ export function TripGenerationProgress({
 
   return (
     <div className="w-full max-w-2xl space-y-6">
+      {/* Weather Forecast and Packing Tip */}
+      {destination && startDate && endDate && (
+        <div className="space-y-4">
+          <WeatherPreview
+            destination={destination}
+            startDate={startDate}
+            endDate={endDate}
+          />
+          
+          <PackingTip
+            destination={destination}
+            activities={activities}
+            timeOfYear={new Date(startDate).toLocaleDateString('en-US', { month: 'long' })}
+          />
+        </div>
+      )}
+
       {/* Main Progress Card */}
       <Card className="p-6 space-y-6">
         {/* Header */}
@@ -261,5 +292,99 @@ function PackingItemSkeleton({ delay }: { delay: number }) {
         </div>
       </Card>
     </motion.div>
+  );
+}
+
+// Weather Preview Component
+function WeatherPreview({ destination, startDate, endDate }: { destination: string; startDate: string; endDate: string }) {
+  const [weather, setWeather] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const fetchWeather = async () => {
+      try {
+        setLoading(true);
+        setError(false);
+        
+        const { weatherApi } = await import('@/lib/api');
+        const weatherData = await weatherApi.getForecast(destination, startDate, endDate);
+        setWeather(weatherData);
+      } catch (err) {
+        console.error('Failed to fetch weather preview:', err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWeather();
+  }, [destination, startDate, endDate]);
+
+  if (loading) {
+    return (
+      <div className="bg-gradient-to-br from-primary/20 via-primary/10 to-accent/30 rounded-xl p-4 border border-primary/30">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl">🌤️</span>
+          <div>
+            <p className="text-base font-semibold text-primary mb-1">Weather Forecast</p>
+            <p className="text-sm text-muted-foreground">
+              Fetching weather forecast...
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !weather) {
+    return null; // Don't show anything if weather fails to load
+  }
+
+  // Helper function to get temperature description
+  const getTempDescription = (temp: number): string => {
+    if (temp < 40) return "very cold";
+    if (temp < 55) return "cold";
+    if (temp < 65) return "cool";
+    if (temp < 80) return "warm";
+    return "hot";
+  };
+
+  // Helper function to get weather condition description
+  const getConditionDescription = (conditions: string[]): string => {
+    if (conditions.includes('rainy')) return "rainy";
+    if (conditions.includes('snowy')) return "snowing";
+    if (conditions.includes('sunny')) return "dry";
+    if (conditions.includes('cloudy')) return "cloudy";
+    return "dry";
+  };
+
+  const tempDesc = getTempDescription(weather.avgTemp);
+  const conditionDesc = getConditionDescription(weather.conditions);
+  const lowTemp = Math.round(weather.avgTemp - 5);
+  const highTemp = Math.round(weather.avgTemp + 5);
+  
+  // Choose weather emoji based on temperature AND conditions
+  const weatherEmoji = weather.conditions.includes('snowy') || weather.avgTemp < 40 ? '❄️' :
+                      weather.conditions.includes('rainy') ? '🌧️' :
+                      weather.conditions.includes('sunny') && weather.avgTemp >= 65 ? '☀️' :
+                      weather.conditions.includes('cloudy') ? '☁️' : '🌤️';
+  
+  const conversationalWeather = `It's going to be ${tempDesc} and ${conditionDesc}! Expect lows of ${lowTemp}°${weather.tempUnit} and highs of ${highTemp}°${weather.tempUnit}.`;
+
+  return (
+    <div className="bg-gradient-to-br from-primary/20 via-primary/10 to-accent/30 rounded-xl p-4 border border-primary/30">
+      <div className="flex items-start gap-3">
+        <span className="text-2xl">{weatherEmoji}</span>
+        <div>
+          <p className="text-base font-semibold text-primary mb-1">
+            Weather Forecast
+          </p>
+          <p className="text-sm text-foreground">
+            {conversationalWeather}
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 from datetime import datetime
 from time import perf_counter
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 from bson import ObjectId
 
@@ -12,8 +12,51 @@ from services.metrics_service import metrics_service
 from services.weather_service import weather_service
 
 
+# List of US states and territories for transport inference
+US_LOCATIONS = [
+    "alabama", "alaska", "arizona", "arkansas", "california", "colorado",
+    "connecticut", "delaware", "florida", "georgia", "hawaii", "idaho",
+    "illinois", "indiana", "iowa", "kansas", "kentucky", "louisiana",
+    "maine", "maryland", "massachusetts", "michigan", "minnesota",
+    "mississippi", "missouri", "montana", "nebraska", "nevada",
+    "new hampshire", "new jersey", "new mexico", "new york",
+    "north carolina", "north dakota", "ohio", "oklahoma", "oregon",
+    "pennsylvania", "rhode island", "south carolina", "south dakota",
+    "tennessee", "texas", "utah", "vermont", "virginia", "washington",
+    "west virginia", "wisconsin", "wyoming", "puerto rico", "guam",
+    "us virgin islands", "american samoa", "northern mariana islands",
+    "united states", "usa", "u.s.", "u.s.a."
+]
+
+
 class TripGenerationService:
     """Encapsulates trip generation workflow and metrics recording."""
+
+    def _infer_transport(self, destination: str, transport: List[str]) -> List[str]:
+        """
+        Infer transport method based on destination if not provided.
+        
+        Args:
+            destination: Trip destination
+            transport: User-provided transport (may be empty)
+            
+        Returns:
+            Inferred or provided transport list
+        """
+        # If transport is already provided and not empty, use it
+        if transport and len(transport) > 0:
+            return transport
+        
+        # Check if destination is in the US
+        destination_lower = destination.lower()
+        is_us_destination = any(loc in destination_lower for loc in US_LOCATIONS)
+        
+        if is_us_destination:
+            # US destination - set to unknown/let LLM decide
+            return ["unknown"]
+        else:
+            # International destination - assume flying
+            return ["flying"]
 
     async def generate_trip(self, *, user_id: str, trip_data: TripCreate) -> TripInDB:
         """
@@ -41,6 +84,9 @@ class TripGenerationService:
         timings_ms: Dict[str, int] = {}
         weather_data: Optional[WeatherInfo] = None
         total_start = perf_counter()
+        
+        # Infer transport if not provided
+        inferred_transport = self._infer_transport(trip_data.destination, trip_data.transport)
 
         try:
             # Step 1: Weather fetch (with timeout fallback handled in service)
@@ -96,7 +142,7 @@ class TripGenerationService:
                 travelers=travelers_db,
                 weather_data=weather_data,
                 activities=trip_data.activities,
-                transport=trip_data.transport,
+                transport=inferred_transport,  # Use inferred transport
             )
             timings_ms["llm_generation_ms"] = int(
                 (perf_counter() - llm_start) * 1000
@@ -110,7 +156,7 @@ class TripGenerationService:
                 start_date=trip_data.start_date,
                 end_date=trip_data.end_date,
                 activities=trip_data.activities,
-                transport=trip_data.transport,
+                transport=inferred_transport,  # Use inferred transport
                 travelers=travelers_db,
                 weather_data=weather_data,
                 packing_lists=packing_lists,

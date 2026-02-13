@@ -31,6 +31,38 @@ export function TripSummaryCard({ trip, onEdit }: TripSummaryCardProps) {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Helper function to get temperature description
+  const getTempDescription = (temp: number): string => {
+    if (temp < 40) return "very cold";
+    if (temp < 55) return "cold";
+    if (temp < 65) return "cool";
+    if (temp < 80) return "warm";
+    return "hot";
+  };
+
+  // Helper function to get weather condition description
+  const getConditionDescription = (conditions: string[]): string => {
+    if (conditions.includes('rainy')) return "rainy";
+    if (conditions.includes('snowy')) return "snowing";
+    if (conditions.includes('sunny')) return "dry";
+    if (conditions.includes('cloudy')) return "cloudy";
+    return "dry";
+  };
+
+  // Generate conversational weather summary
+  const getConversationalWeather = () => {
+    if (!trip.weather) return null;
+    
+    const tempDesc = getTempDescription(trip.weather.avgTemp);
+    const conditionDesc = getConditionDescription(trip.weather.conditions);
+    
+    // For now, we'll use avgTemp as both high and low (can be enhanced with actual data)
+    const lowTemp = Math.round(trip.weather.avgTemp - 5);
+    const highTemp = Math.round(trip.weather.avgTemp + 5);
+    
+    return `It's going to be ${tempDesc} and ${conditionDesc}! Expect lows of ${lowTemp}°${trip.weather.tempUnit} and highs of ${highTemp}°${trip.weather.tempUnit}.`;
+  };
+
   // Calculate how many tags fit in the available space
   useEffect(() => {
     const calculateVisibleTags = () => {
@@ -193,7 +225,7 @@ export function TripSummaryCard({ trip, onEdit }: TripSummaryCardProps) {
                   </Button>
                 </div>
 
-                {/* Weather Insight Card - Teal style matching trip summary */}
+                {/* Weather Insight Card - Conversational format */}
                 {trip.weather && (
                   <div className="bg-primary/10 border border-primary/30 rounded-xl px-3 py-2.5">
                     <div className="flex items-center gap-1.5 mb-1">
@@ -204,9 +236,12 @@ export function TripSummaryCard({ trip, onEdit }: TripSummaryCardProps) {
                          trip.weather.conditions.includes('cloudy') ? '☁️' : '🌤️'}
                       </span>
                       <span className="text-xs font-semibold text-primary">
-                        {trip.weather.avgTemp}°{trip.weather.tempUnit} - {trip.weather.conditions.join(', ')}
+                        Weather Forecast
                       </span>
                     </div>
+                    <p className="text-xs text-foreground leading-relaxed mb-1">
+                      {getConversationalWeather()}
+                    </p>
                     <p className="text-xs text-muted-foreground leading-relaxed">
                       {trip.weather.recommendation}
                     </p>

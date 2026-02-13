@@ -46,8 +46,8 @@ export function PackingItemCard({
   const nameInputRef = useRef<HTMLInputElement>(null);
   const quantityInputRef = useRef<HTMLInputElement>(null);
   
-  // Parse activity item to get clean name and icon
-  const { isActivityItem, cleanName, ActivityIcon } = parseActivityItem(item.name);
+  // Parse activity item to get clean name (remove asterisk)
+  const { cleanName } = parseActivityItem(item.name);
   const displayName = cleanName;
 
   useEffect(() => {
@@ -157,12 +157,7 @@ export function PackingItemCard({
           )}
         >
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-5xl">{item.emoji}</span>
-              {isActivityItem && ActivityIcon && (
-                <ActivityIcon className="w-6 h-6 text-kid-primary" />
-              )}
-            </div>
+            <span className="text-5xl">{item.emoji}</span>
             <div className="flex-1 text-left">
               <p className={cn(
                 'text-2xl font-bold',
@@ -223,22 +218,6 @@ export function PackingItemCard({
         onCheckedChange={() => handleTogglePacked()}
         className="h-5 w-5 shrink-0"
       />
-      
-      {/* Activity icon indicator - moved to right of checkbox */}
-      {isActivityItem && ActivityIcon && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="shrink-0 w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
-                <ActivityIcon className="w-3 h-3 text-primary" />
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">
-              <p>Activity-specific item</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
       
       <div className="flex-1 min-w-0">
         {isEditingName ? (
